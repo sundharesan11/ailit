@@ -1,0 +1,14 @@
+{
+  "name": "retry_strategy",
+  "title": "Retry Strategy",
+  "description": "Best practices for retrying failed operations without amplifying failures or duplicating side effects.",
+  "path": "skills/backend/retry_strategy",
+  "tags": ["backend", "resilience", "retry", "fault-tolerance"],
+  "aliases": ["retry logic", "backoff", "transient failure"],
+  "keywords": ["timeout", "idempotency", "jitter", "dead letter", "producer", "handler"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity", "tdd"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

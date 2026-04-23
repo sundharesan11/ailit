@@ -1,0 +1,14 @@
+{
+  "name": "data_partitioning",
+  "title": "Data Partitioning",
+  "description": "Guidance for partitioning datasets and tables for performance, retention, and maintainability.",
+  "path": "skills/data_engineering/data_partitioning",
+  "tags": ["data_engineering", "partitioning", "warehouse", "performance"],
+  "aliases": ["table partitioning", "data layout"],
+  "keywords": ["date partition", "sharding", "bucket", "retention", "pruning"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

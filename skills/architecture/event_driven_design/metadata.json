@@ -1,0 +1,14 @@
+{
+  "name": "event_driven_design",
+  "title": "Event-Driven Design",
+  "description": "Guidance for using events, queues, consumers, and asynchronous workflows safely.",
+  "path": "skills/architecture/event_driven_design",
+  "tags": ["architecture", "events", "queues", "async", "messaging"],
+  "aliases": ["event driven architecture", "eda", "message driven"],
+  "keywords": ["producer", "consumer", "idempotency", "ordering", "event"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity", "clean_architecture"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

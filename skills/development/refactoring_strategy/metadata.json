@@ -1,0 +1,14 @@
+{
+  "name": "refactoring_strategy",
+  "title": "Refactoring Strategy",
+  "description": "Guidance for improving code structure without changing behavior.",
+  "path": "skills/development/refactoring_strategy",
+  "tags": ["development", "refactoring", "maintainability", "design"],
+  "aliases": ["code cleanup", "technical debt"],
+  "keywords": ["extract", "rename", "simplify", "module", "behavior-preserving"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity", "tdd"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

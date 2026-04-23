@@ -1,0 +1,14 @@
+{
+  "name": "error_handling",
+  "title": "Error Handling",
+  "description": "Guidance for classifying, propagating, logging, and testing errors in backend systems.",
+  "path": "skills/backend/error_handling",
+  "tags": ["backend", "errors", "reliability", "observability"],
+  "aliases": ["exception handling", "failure handling"],
+  "keywords": ["exception", "logging", "classification", "timeout", "validation"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity", "clean_architecture"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

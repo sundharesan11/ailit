@@ -1,0 +1,12 @@
+{
+  "name": "example_skill",
+  "title": "Example Skill",
+  "description": "Template skill showing the expected structure for reusable AI engineering guidance.",
+  "path": "skills/example_skill",
+  "tags": ["template", "example", "engineering"],
+  "version": "0.1.0",
+  "status": "template",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

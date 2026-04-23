@@ -1,0 +1,14 @@
+{
+  "name": "system_design",
+  "title": "System Design",
+  "description": "Guidance for designing maintainable software systems, components, boundaries, and data flow.",
+  "path": "skills/architecture/system_design",
+  "tags": ["architecture", "design", "systems", "scalability"],
+  "aliases": ["software architecture", "high level design", "hld"],
+  "keywords": ["boundary", "component", "interface", "tradeoff"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity", "clean_architecture"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

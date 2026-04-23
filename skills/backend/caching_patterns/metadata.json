@@ -1,0 +1,14 @@
+{
+  "name": "caching_patterns",
+  "title": "Caching Patterns",
+  "description": "Guidance for applying backend caching without stale data, hidden coupling, or invalidation failures.",
+  "path": "skills/backend/caching_patterns",
+  "tags": ["backend", "cache", "performance", "scalability"],
+  "aliases": ["caching", "cache invalidation", "memoization"],
+  "keywords": ["ttl", "staleness", "redis", "read through", "write through"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

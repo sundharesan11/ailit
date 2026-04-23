@@ -1,0 +1,14 @@
+{
+  "name": "debugging_strategy",
+  "title": "Debugging Strategy",
+  "description": "Systematic process for diagnosing bugs, failing tests, and unexpected behavior before fixing.",
+  "path": "skills/development/debugging_strategy",
+  "tags": ["development", "debugging", "tests", "root-cause"],
+  "aliases": ["bug investigation", "root cause analysis"],
+  "keywords": ["failure", "reproduce", "hypothesis", "logs", "trace"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["tdd", "simplicity"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

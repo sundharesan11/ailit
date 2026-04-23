@@ -1,0 +1,14 @@
+{
+  "name": "etl_pipeline_design",
+  "title": "ETL Pipeline Design",
+  "description": "Guidance for designing extract, transform, and load pipelines with reliable data contracts.",
+  "path": "skills/data_engineering/etl_pipeline_design",
+  "tags": ["data_engineering", "etl", "pipeline", "batch", "data-quality"],
+  "aliases": ["data pipeline", "elt", "ingestion pipeline"],
+  "keywords": ["extract", "transform", "load", "schema", "lineage", "quality"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity", "tdd"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

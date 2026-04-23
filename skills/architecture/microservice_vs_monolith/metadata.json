@@ -1,0 +1,14 @@
+{
+  "name": "microservice_vs_monolith",
+  "title": "Microservice vs Monolith",
+  "description": "Decision guidance for choosing a monolith, modular monolith, or microservice architecture.",
+  "path": "skills/architecture/microservice_vs_monolith",
+  "tags": ["architecture", "microservices", "monolith", "modularity"],
+  "aliases": ["service split", "modular monolith", "distributed system"],
+  "keywords": ["service", "boundary", "team", "deployment", "coupling"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity", "clean_architecture"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

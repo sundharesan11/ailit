@@ -1,0 +1,14 @@
+{
+  "name": "test_driven_development",
+  "title": "Test-Driven Development",
+  "description": "Guidance for writing tests before implementation and using feedback to drive design.",
+  "path": "skills/development/test_driven_development",
+  "tags": ["development", "testing", "tdd", "quality"],
+  "aliases": ["red green refactor", "test first"],
+  "keywords": ["unit test", "regression", "behavior", "fixture", "mock"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["tdd", "simplicity"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}
