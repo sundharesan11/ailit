@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -15,7 +16,7 @@ from .matcher import match_skills
 from .memory import add_task, capture_lesson, log_decision
 from .plugins import import_plugin, index_plugins
 from .project_init import init_project
-from .registry import index_skills, validate_all_skills
+from .registry import index_skills, load_registry, validate_all_skills
 from .skill_importer import import_skill
 
 
@@ -90,6 +91,42 @@ def run_self_test() -> list[SelfTestResult]:
                 lambda: import_skill(skill_source, provider="aios_self_test", overwrite=True).trust_level,
             )
         )
+
+        external_root = Path(tmp) / "external_skills"
+        external_skill = external_root / "external-smoke"
+        external_skill.mkdir(parents=True)
+        (external_skill / "SKILL.md").write_text(
+            "---\n"
+            "name: external-smoke\n"
+            "description: Temporary external skill\n"
+            "---\n\n"
+            "# External Smoke\n",
+            encoding="utf-8",
+        )
+        old_skill_sources = os.environ.get("AIOS_SKILL_SOURCES")
+        os.environ["AIOS_SKILL_SOURCES"] = str(external_root)
+        try:
+            results.append(
+                run_step(
+                    "index external skills",
+                    lambda: next(
+                        skill["name"]
+                        for skill in load_registry(refresh=True).get("skills", [])
+                        if skill.get("source") == "external"
+                    ),
+                )
+            )
+            results.append(
+                run_step(
+                    "load external skill",
+                    lambda: load_skills(["external_smoke"])[:40],
+                )
+            )
+        finally:
+            if old_skill_sources is None:
+                os.environ.pop("AIOS_SKILL_SOURCES", None)
+            else:
+                os.environ["AIOS_SKILL_SOURCES"] = old_skill_sources
 
         plugin_source = Path(tmp) / "plugin"
         plugin_source.mkdir()

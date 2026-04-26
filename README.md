@@ -39,6 +39,8 @@ Then use it from any project:
 aios doctor --project .
 aios onboard --project . --tools codex cursor claude gemini antigravity windsurf
 aios prepare --task "add retry logic" --project . --tool codex
+aios list-skill-sources
+aios list-skills --query compound
 aios self-test
 ```
 
@@ -47,6 +49,17 @@ aios self-test
 ## Skill Runtime
 
 The skill runtime lets AI agents discover and load reusable engineering guidance automatically.
+
+The registry includes:
+
+- local AI OS skills from `~/engineering_brain/skills/`
+- installed external skills from `~/.agents/skills/`
+- installed external skills from `~/.codex/skills/`
+
+Runtime commands such as `match`, `load`, and `prepare` refresh the registry first,
+so newly installed skills in those roots become visible without a separate import step.
+To override the default external roots, set `AIOS_SKILL_SOURCES` using your shell's
+path separator.
 
 Flow:
 
@@ -66,6 +79,8 @@ python3 -m aios match "design retry strategy"
 python3 -m aios load retry_strategy
 python3 -m aios build --task "add retry logic" --project .
 python3 -m aios index
+python3 -m aios list-skills
+python3 -m aios list-skill-sources
 python3 -m aios validate
 python3 -m aios init-project --project .
 python3 -m aios integrate --project .
@@ -178,6 +193,14 @@ Run the AI OS smoke suite:
 
 ```bash
 python3 ~/engineering_brain/scripts/aios.py self-test
+```
+
+Inspect configured skill roots and indexed installed skills:
+
+```bash
+python3 ~/engineering_brain/scripts/aios.py list-skill-sources
+python3 ~/engineering_brain/scripts/aios.py list-skills --query marketing
+python3 ~/engineering_brain/scripts/aios.py list-skills --query compound
 ```
 
 ### Match Skills

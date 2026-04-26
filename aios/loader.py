@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from .paths import ROOT
@@ -23,7 +24,10 @@ def effective_trust_level(skill: dict[str, Any]) -> str:
 
 def load_skill_content(skill: dict[str, Any]) -> str:
     """Load one skill's entrypoint content."""
-    skill_path = ROOT / skill["path"]
+    if skill.get("source_path"):
+        skill_path = Path(skill["source_path"]).expanduser().resolve()
+    else:
+        skill_path = ROOT / str(skill["path"])
     entrypoint = skill.get("entrypoint", "skill.md")
     content_path = skill_path / entrypoint
 

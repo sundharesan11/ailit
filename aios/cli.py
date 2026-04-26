@@ -24,7 +24,14 @@ from .plugins import (
     update_plugin_trust,
 )
 from .project_init import init_project
-from .registry import index_skills, skill_dirs, validate_all_skills, validate_skill
+from .registry import (
+    external_skill_source_statuses,
+    index_skills,
+    load_registry,
+    skill_dirs,
+    validate_all_skills,
+    validate_skill,
+)
 from .prepare import prepare_task
 from .self_test import format_self_test, run_self_test, self_test_exit_code
 from .skill_importer import TRUST_LEVELS, import_skill, update_skill_trust
@@ -55,6 +62,63 @@ def print_index(_: argparse.Namespace) -> int:
     """Handle the index command."""
     count = index_skills()
     print(f"Indexed {count} skill(s) into registry/skills.json")
+    return 0
+
+
+def print_list_skills(args: argparse.Namespace) -> int:
+    """Handle the list-skills command."""
+    registry = load_registry()
+    skills = registry.get("skills", [])
+
+    if args.source != "all":
+        skills = [skill for skill in skills if skill.get("source", "local") == args.source]
+
+    if args.query:
+        query = args.query.lower()
+        skills = [
+            skill
+            for skill in skills
+            if query in str(skill.get("name", "")).lower()
+            or query in str(skill.get("title", "")).lower()
+            or query in str(skill.get("description", "")).lower()
+            or query in str(skill.get("path", "")).lower()
+        ]
+
+    if args.json:
+        print(json.dumps(skills, indent=2, ensure_ascii=False))
+        return 0
+
+    if not skills:
+        print("No skills matched.")
+        return 0
+
+    for skill in skills:
+        print(
+            f"{skill['name']} | source={skill.get('source', 'local')} "
+            f"| provider={skill.get('provider', 'local')} "
+            f"| trust={skill.get('trust_level', skill.get('status', 'unknown'))} "
+            f"| path={skill.get('path', '')}"
+        )
+    return 0
+
+
+def print_list_skill_sources(args: argparse.Namespace) -> int:
+    """Handle the list-skill-sources command."""
+    sources = external_skill_source_statuses()
+    if args.json:
+        print(json.dumps(sources, indent=2, ensure_ascii=False))
+        return 0
+
+    print(
+        f"local | exists=yes | skill_count={len(skill_dirs())} "
+        f"| path={ROOT / 'skills'}"
+    )
+    for source in sources:
+        exists = "yes" if source["exists"] else "no"
+        print(
+            f"{source['label']} | exists={exists} | skill_count={source['skill_count']} "
+            f"| path={source['display_path']}"
+        )
     return 0
 
 
@@ -431,6 +495,39 @@ def build_parser() -> argparse.ArgumentParser:
 
     index_parser = subparsers.add_parser("index", help="Rebuild the skill registry.")
     index_parser.set_defaults(func=print_index)
+
+    list_skills_parser = subparsers.add_parser(
+        "list-skills",
+        help="List indexed skills from local and external sources.",
+    )
+    list_skills_parser.add_argument(
+        "--source",
+        choices=("all", "local", "external"),
+        default="all",
+        help="Filter by source type. Defaults to all.",
+    )
+    list_skills_parser.add_argument(
+        "--query",
+        default=None,
+        help="Optional case-insensitive substring filter.",
+    )
+    list_skills_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print raw skill registry JSON entries.",
+    )
+    list_skills_parser.set_defaults(func=print_list_skills)
+
+    list_skill_sources_parser = subparsers.add_parser(
+        "list-skill-sources",
+        help="List configured external skill source roots.",
+    )
+    list_skill_sources_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print raw source status JSON.",
+    )
+    list_skill_sources_parser.set_defaults(func=print_list_skill_sources)
 
     validate_parser = subparsers.add_parser("validate", help="Validate skills.")
     validate_parser.add_argument(
