@@ -2,8 +2,8 @@
 
 AIlit is an open-source setup and context runtime for AI-assisted engineering.
 
-It helps developers use one shared local workflow across tools such as Codex, Cursor,
-Claude Code, Gemini CLI, Antigravity, and Windsurf.
+It helps developers, teams, and organizations use one shared workflow across tools
+such as Codex, Cursor, Claude Code, Gemini CLI, Antigravity, and Windsurf.
 
 ![AIlit overview diagram](docs/assets/AIlit.png)
 
@@ -18,6 +18,10 @@ AIlit adds a simple runtime layer that helps agents:
 - load relevant skills for the current task
 - read project AI context from the target repository
 - prepare a cleaner task context before non-trivial work
+
+It can be used by one developer, but it is also designed to be shared across a
+team or an organization. The same setup can carry shared standards, approved
+skills, and common project conventions into many repositories.
 
 AIlit is not only a prompt builder.
 Prompt preparation is one part of the system, but AIlit also handles:
@@ -79,6 +83,7 @@ Start here:
 - set up a new project for AI-assisted development
 - make sure coding agents use project context before editing
 - manage reusable engineering skills in one place
+- share engineering standards and approved skills across a team or org
 - verify that installed skills are visible to AIOS
 - keep project decisions and lessons easy to reuse
 

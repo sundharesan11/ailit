@@ -108,7 +108,15 @@ The registry may contain:
 - installed external skills
 - imported vendor skills
 
-### Step 5: AIOS loads standards
+### Step 5: AIOS matches reusable solutions
+
+If shared solution docs exist, AIOS also checks whether a solved-problem note is
+relevant to the current task.
+
+This gives the agent a chance to reuse a proven pattern instead of starting from
+zero.
+
+### Step 6: AIOS loads standards
 
 It loads the global engineering standards, such as:
 
@@ -116,7 +124,7 @@ It loads the global engineering standards, such as:
 - clean architecture
 - test-driven development
 
-### Step 6: AIOS loads project context
+### Step 7: AIOS loads project context
 
 It reads project AI files such as:
 
@@ -127,17 +135,18 @@ It reads project AI files such as:
 - `ai/tasks.md`
 - `ai/lessons.md`
 
-### Step 7: AIOS builds the task context
+### Step 8: AIOS builds the task context
 
 It combines:
 
 - operating instructions
 - standards
 - selected skills
+- selected reusable solutions
 - project files
 - the original task
 
-### Step 8: AIOS formats the result for the tool
+### Step 9: AIOS formats the result for the tool
 
 The output is shaped for the requested tool, such as:
 
@@ -148,7 +157,19 @@ The output is shaped for the requested tool, such as:
 - Antigravity
 - Windsurf
 
-### Step 9: The agent does the actual work
+### Step 10: AIOS writes a lightweight usage log
+
+When `prepare` runs inside a project with an `ai/` directory, AIOS appends a
+lightweight entry to:
+
+```text
+ai/usage.log
+```
+
+This helps show whether the runtime was actually used and which skills and
+solutions were selected.
+
+### Step 11: The agent does the actual work
 
 At this point, the coding agent uses the prepared context and starts editing, debugging, reviewing, or designing.
 
@@ -161,6 +182,9 @@ Common follow-up actions include:
 ```bash
 aios log-decision --project .
 aios capture-lesson --project .
+aios capture-solution --title "..." --owner "..." --summary "..." --problem "..." --context "..." --solution "..."
+aios promote-lesson --project . --title "..." --owner "..." --summary "..." --solution "..."
+aios list-knowledge --project . --show-items
 aios add-task --project .
 ```
 

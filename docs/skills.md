@@ -1,6 +1,9 @@
 # Skills
 
-This document explains what skills are in AIOS, where they come from, and how to manage them.
+This document explains what skills are in AIOS, where they come from, and how to
+manage them.
+
+It also explains where skills fit relative to the new shared solution layer.
 
 ## What A Skill Is
 
@@ -16,6 +19,40 @@ Examples:
 
 A skill is not usually code.
 It is usually task knowledge written in markdown, plus metadata that helps AIOS discover it.
+
+## Skill Vs Solution
+
+Skills and solutions are related, but they are not the same thing.
+
+### Skill
+
+A skill explains how to approach a class of work.
+
+Examples:
+
+- retry strategy
+- debugging strategy
+- test-driven development
+
+### Solution
+
+A solution explains how a real problem was solved and when that solution should
+be reused.
+
+Examples:
+
+- fixing duplicate processing in a worker pipeline
+- handling token refresh races in a frontend session flow
+
+Use a skill when you want general reusable guidance.
+
+Use a solution when you want a practical solved-problem reference.
+
+Shared solutions live under:
+
+```text
+docs/solutions/
+```
 
 ## Where Skills Come From
 
@@ -234,6 +271,10 @@ A good skill should clearly explain:
 - what to avoid
 
 Try not to make skills too vague or too broad.
+
+If something is too tied to one real incident, one stack edge case, or one
+specific solved problem, it may belong in `docs/solutions/` instead of
+`skills/`.
 
 ## If A Skill Does Not Show Up
 

@@ -13,6 +13,9 @@ def render_universal(context: dict[str, str | list[str]]) -> str:
     selected_skills = context["skill_names"]
     assert isinstance(selected_skills, list)
     skill_label = ", ".join(selected_skills) if selected_skills else "none"
+    selected_solutions = context["solution_slugs"]
+    assert isinstance(selected_solutions, list)
+    solution_label = ", ".join(selected_solutions) if selected_solutions else "none"
 
     return f"""# SYSTEM CONTEXT
 
@@ -27,6 +30,12 @@ to the user task and report validation clearly.
 Selected skills: {skill_label}
 
 {context["skills"]}
+
+# REUSABLE SOLUTIONS
+
+Selected solutions: {solution_label}
+
+{context["solutions"]}
 
 # PROJECT CONTEXT
 

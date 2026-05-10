@@ -13,6 +13,20 @@ AIOS works with the native instruction system of the coding tool.
 It does not replace files like `AGENTS.md` or `CLAUDE.md`.
 Instead, it uses those files as the way to trigger the shared AIOS runtime.
 
+## Single Developer Or Shared Team Setup
+
+You can use AIOS alone, but the same model also works as a shared setup for a
+team or an organization.
+
+The common pattern is:
+
+- one shared AIlit repository for runtime logic, standards, and skills
+- many project repositories with their own local `ai/` files
+- the same onboarding and preparation flow across developers and tools
+
+This keeps shared rules centralized while leaving project-specific context inside
+each project.
+
 ## Most Common Commands
 
 ### Setup commands
@@ -49,13 +63,26 @@ aios match "design retry strategy"
 aios load retry_strategy
 ```
 
+### Solution discovery commands
+
+Use these to inspect shared solved-problem references:
+
+```bash
+aios list-solutions
+aios list-solutions --query retry
+aios list-solutions --query kafka
+aios validate-solutions
+```
+
 ### Maintenance commands
 
 Use these when checking or rebuilding the system:
 
 ```bash
 aios index
+aios index-solutions
 aios validate
+aios validate-solutions
 aios self-test
 ```
 
@@ -66,6 +93,9 @@ Use these to store useful project knowledge:
 ```bash
 aios log-decision --project .
 aios capture-lesson --project .
+aios capture-solution --title "..." --owner "..." --summary "..." --problem "..." --context "..." --solution "..."
+aios promote-lesson --project . --title "..." --owner "..." --summary "..." --solution "..."
+aios list-knowledge --project . --show-items
 aios add-task --project .
 aios capture-update
 ```
@@ -104,6 +134,15 @@ If needed, test a direct load:
 aios load marketing_ideas
 ```
 
+## Workflow 2B: Check Whether A Shared Solution Is Available
+
+Run:
+
+```bash
+aios list-solutions --query retry
+aios list-solutions --query auth
+```
+
 ## Workflow 3: Debug AIOS Setup
 
 Run:
@@ -120,7 +159,20 @@ This tells you whether the issue is:
 - the skill registry
 - the local AIOS installation
 
-## Workflow 4: Manually Inspect What The Agent Would See
+## Workflow 4: Promote A Reusable Lesson
+
+If a project lesson should become shared knowledge, run:
+
+```bash
+aios promote-lesson \
+  --project . \
+  --title "Lesson title" \
+  --owner "platform" \
+  --summary "Short reusable summary." \
+  --solution "Describe the reusable fix or pattern."
+```
+
+## Workflow 5: Manually Inspect What The Agent Would See
 
 If you want to inspect the prepared context yourself, run:
 
@@ -129,6 +181,9 @@ aios prepare --task "refactor the order sync worker" --project . --tool codex
 ```
 
 This is useful for debugging or improving project AI files.
+
+When `prepare` runs inside a real project, AIOS also writes a lightweight audit
+entry to `ai/usage.log`.
 
 ## Using AIOS With Different Tools
 

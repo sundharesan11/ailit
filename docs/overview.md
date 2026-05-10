@@ -4,13 +4,15 @@ This document explains what AIOS is, why it was built, where it fits, and when i
 
 ## What AIOS Is
 
-AIOS stands for Personal AI Engineering OS.
+AIOS started as a personal AI engineering setup, but the model is not limited to
+one person.
 
-It is a local system that helps AI coding agents work with better context.
+It is a local-first system that helps AI coding agents work with better context.
 Instead of starting from a blank prompt, an agent can use AIOS to load:
 
 - engineering standards
 - reusable skills
+- reusable solutions
 - project-specific AI files
 - tool-specific instructions
 
@@ -25,6 +27,12 @@ The best short description is:
 ```text
 AIOS is a cross-tool context and workflow runtime for coding agents.
 ```
+
+In practice, AIOS can be used in three ways:
+
+- by one developer as a personal setup
+- by a team as a shared engineering workflow
+- by an organization as a standard AI engineering layer across many repos
 
 ## Why It Was Built
 
@@ -69,6 +77,7 @@ AIOS also handles:
 - project onboarding
 - readiness checks
 - skill discovery and indexing
+- reusable solution guidance
 - local instruction-file setup
 - project memory support
 
@@ -86,6 +95,7 @@ AIOS is useful for:
 - engineers working across several repos
 - developers who want shared project rules for multiple AI tools
 - teams building reusable local AI workflows
+- organizations that want one approved setup for AI-assisted development
 
 It is especially useful if you use more than one agent tool and want a single source of truth.
 
@@ -120,6 +130,27 @@ The idea is simple:
 
 That gives you one engineering brain that can support several tools.
 
+## Personal To Org-Shareable
+
+AIOS does not need to stay personal.
+
+The same structure can be shared in an organization by treating the repository as
+a common runtime and knowledge base.
+
+That usually means:
+
+- shared standards live in one maintained repo
+- approved skills are indexed once and reused across projects
+- each project keeps its own local `ai/` context
+- supported coding tools use the same onboarding and preparation flow
+
+This gives teams a middle ground between two bad extremes:
+
+- every developer invents their own agent workflow
+- one rigid central system tries to hide project-level context
+
+AIOS works better as a shared layer with local project context on top.
+
 ## Main Ideas Behind AIOS
 
 ### 1. Global engineering knowledge
@@ -128,8 +159,11 @@ AIOS stores reusable knowledge in one place:
 
 - standards
 - skills
+- solutions
 - prompts
 - agent guidance
+
+That knowledge can be maintained by one developer, a team, or a platform group.
 
 ### 2. Project-specific context
 
@@ -148,6 +182,7 @@ Before real work starts, AIOS can build a task-ready prompt by combining:
 
 - standards
 - matching skills
+- matching reusable solutions when relevant
 - project AI files
 - the user task
 
@@ -189,6 +224,11 @@ Use AIOS when you do not want to redesign your setup for each agent separately.
 ### Manage reusable skills
 
 Use AIOS to index local skills and installed external skills from other tool ecosystems.
+
+### Capture reusable solved problems
+
+Use the solution layer when a real fix or implementation pattern should be
+reused across projects or teams without promoting it into a full skill yet.
 
 ### Reuse lessons across projects
 

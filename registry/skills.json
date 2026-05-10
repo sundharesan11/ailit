@@ -13,7 +13,7 @@
         "path": "/Users/sundharesan/.agents/skills",
         "display_path": "~/.agents/skills",
         "exists": true,
-        "skill_count": 47,
+        "skill_count": 49,
         "source_kind": "agents_installed"
       },
       {
@@ -21,7 +21,7 @@
         "path": "/Users/sundharesan/.codex/skills",
         "display_path": "~/.codex/skills",
         "exists": true,
-        "skill_count": 98,
+        "skill_count": 99,
         "source_kind": "codex_installed"
       }
     ]
@@ -2491,6 +2491,35 @@
       "entrypoint": "SKILL.md"
     },
     {
+      "name": "linear_issue_create",
+      "title": "Create Linear Issues from Plans",
+      "description": "Create Linear issues from plan files. Reads plans from PROGRESS.md, lets user select which plans to create issues for, and updates plan files with Linear issue URLs. Use when user wants to create Linear issues from their plans.",
+      "path": "~/.codex/skills/linear-issue-create",
+      "source_path": "/Users/sundharesan/.codex/skills/linear-issue-create",
+      "source_root": "/Users/sundharesan/.codex/skills",
+      "source": "external",
+      "source_type": "codex_installed",
+      "provider": "codex",
+      "tags": [
+        "codex",
+        "create",
+        "external",
+        "from",
+        "issue",
+        "issues",
+        "linear",
+        "plans"
+      ],
+      "aliases": [
+        "linear-issue-create"
+      ],
+      "keywords": [],
+      "version": "external",
+      "status": "active",
+      "trust_level": "reviewed",
+      "entrypoint": "SKILL.md"
+    },
+    {
       "name": "livekit_change_workflow",
       "title": "LiveKit Change Workflow",
       "description": "Plan and implement LiveKit-related changes safely in this repo. Use when editing session/task orchestration, tools, chat context, turn handling, or any behavior tied to LiveKit Agents SDK. Requires checking official LiveKit docs and local installed SDK behavior before code changes.",
@@ -4232,6 +4261,59 @@
       ],
       "aliases": [
         "ui-ux-design"
+      ],
+      "keywords": [],
+      "version": "external",
+      "status": "active",
+      "trust_level": "reviewed",
+      "entrypoint": "SKILL.md"
+    },
+    {
+      "name": "ui_ux_pro_max",
+      "title": "UI/UX Pro Max - Design Intelligence",
+      "description": "UI/UX design intelligence for web and mobile. Includes 50+ styles, 161 color palettes, 57 font pairings, 161 product types, 99 UX guidelines, and 25 chart types across 10 stacks (React, Next.js, Vue, Svelte, SwiftUI, React Native, Flutter, Tailwind, shadcn/ui, and HTML/CSS). Actions: plan, build, create, design, implement, review, fix, improve, optimize, enhance, refactor, and check UI/UX code. Projects: website, landing page, dashboard, admin panel, e-commerce, SaaS, portfolio, blog, and mobile app. Elements: button, modal, navbar, sidebar, card, table, form, and chart. Styles: glassmorphism, claymorphism, minimalism, brutalism, neumorphism, bento grid, dark mode, responsive, skeuomorphism, and flat design. Topics: color systems, accessibility, animation, layout, typography, font pairing, spacing, interaction states, shadow, and gradient. Integrations: shadcn/ui MCP for component search and examples.",
+      "path": "~/.agents/skills/ui-ux-pro-max",
+      "source_path": "/Users/sundharesan/.agents/skills/ui-ux-pro-max",
+      "source_root": "/Users/sundharesan/.agents/skills",
+      "source": "external",
+      "source_type": "agents_installed",
+      "provider": "agents",
+      "tags": [
+        "agents",
+        "design",
+        "external",
+        "intelligence",
+        "max",
+        "pro",
+        "ui",
+        "ux"
+      ],
+      "aliases": [
+        "ui-ux-pro-max"
+      ],
+      "keywords": [],
+      "version": "external",
+      "status": "active",
+      "trust_level": "reviewed",
+      "entrypoint": "SKILL.md"
+    },
+    {
+      "name": "ultracite",
+      "title": "Ultracite",
+      "description": "Ultracite is a zero-config linting and formatting preset for JavaScript/TypeScript projects. Use when: (1) Setting up or initializing Ultracite in a project (ultracite init), (2) Running linting or formatting commands (check, fix, doctor), (3) Writing or reviewing JS/TS code in a project that uses Ultracite — to follow its code standards, (4) Troubleshooting linting/formatting issues, (5) User mentions 'ultracite', 'lint', 'format', 'code quality', or 'biome/eslint/oxlint' in a project with Ultracite installed.",
+      "path": "~/.agents/skills/ultracite",
+      "source_path": "/Users/sundharesan/.agents/skills/ultracite",
+      "source_root": "/Users/sundharesan/.agents/skills",
+      "source": "external",
+      "source_type": "agents_installed",
+      "provider": "agents",
+      "tags": [
+        "agents",
+        "external",
+        "ultracite"
+      ],
+      "aliases": [
+        "ultracite"
       ],
       "keywords": [],
       "version": "external",

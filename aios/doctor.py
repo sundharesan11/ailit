@@ -110,7 +110,7 @@ def run_doctor(project_path: str | Path) -> list[DoctorCheck]:
     )
 
     try:
-        build_context("doctor smoke test", str(root), 1, "universal")
+        build_context("doctor smoke test", str(root), 1, 1, "universal")
         checks.append(DoctorCheck("PASS", "context builder", "smoke test passed"))
     except Exception as exc:  # noqa: BLE001 - doctor reports any failure
         checks.append(DoctorCheck("FAIL", "context builder", str(exc)))

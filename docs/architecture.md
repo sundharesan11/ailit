@@ -17,9 +17,12 @@ That means AIOS sits between:
 - the local project
 - the reusable engineering knowledge
 
+That reusable engineering knowledge can belong to one developer, a team, or an
+entire organization.
+
 ## High-Level View
 
-![AIOS architecture overview](assets/ailit-objective-diagram.svg)
+![AIlit architecture overview](assets/AIlit.png)
 
 AIOS has four main parts:
 
@@ -27,6 +30,11 @@ AIOS has four main parts:
 2. context-building runtime
 3. skills and standards storage
 4. project integration layer
+
+In a shared team or org setup, these parts usually split across two layers:
+
+1. one shared AIlit repository with runtime logic, standards, and skills
+2. many project repositories with local `ai/` context and tool instruction files
 
 Here is the simple flow:
 
@@ -59,6 +67,9 @@ flowchart LR
 This is important because AIOS does not replace the tool's native instruction
 system. It works through it.
 
+That design is what makes AIOS shareable across an organization without forcing
+all projects to share the same project-level context.
+
 ## Main Folders
 
 ### `aios/`
@@ -85,6 +96,9 @@ Each skill normally has:
 - `skill.md`
 - optional supporting files such as `examples.md`
 
+In a shared setup, this becomes a common skill library that many developers and
+projects can reuse.
+
 ### `standards/`
 
 This stores reusable engineering principles such as:
@@ -92,6 +106,9 @@ This stores reusable engineering principles such as:
 - simplicity
 - clean architecture
 - test-driven development
+
+In an org setup, this is where shared engineering rules and AI usage guidance
+usually live.
 
 ### `registry/`
 
@@ -286,6 +303,9 @@ This is the main connection point with tools such as Codex and Claude Code.
 Those tools already support project instructions in their own way.
 AIOS uses that existing mechanism and gives them one shared local runtime
 command to call.
+
+That means the same AIlit runtime can support many developers and many repos
+without asking each team to invent a separate agent workflow.
 
 That is why AIOS should be understood as a cross-tool runtime layer, not only
 as a prompt formatting tool.
