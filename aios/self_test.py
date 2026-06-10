@@ -18,7 +18,7 @@ from .memory import list_knowledge, promote_lesson_to_solution, write_solution_d
 from .plugins import import_plugin, index_plugins
 from .prepare import prepare_task
 from .project_init import init_project
-from .registry import index_skills, load_registry, validate_all_skills
+from .registry import index_skills, load_registry, parse_frontmatter, registry_by_name, validate_all_skills
 from .solution_registry import index_solutions, load_solution_registry, validate_all_solutions
 from .skill_importer import import_skill
 
@@ -39,6 +39,38 @@ def run_step(name: str, fn) -> SelfTestResult:
         return SelfTestResult("PASS", name, str(detail or "ok"))
     except Exception as exc:  # noqa: BLE001 - self-test reports any failure
         return SelfTestResult("FAIL", name, str(exc))
+
+
+def external_frontmatter_lists_check() -> str:
+    """Verify external SKILL.md list frontmatter reaches the registry."""
+    skills = registry_by_name(load_registry(refresh=True))
+    entry = skills["external_smoke"]
+    tags = set(entry.get("tags", []))
+    expected_tags = {"smoketag", "landing", "page"}
+    if not expected_tags.issubset(tags):
+        raise ValueError(f"missing tags: {sorted(expected_tags - tags)}")
+    keywords = set(entry.get("keywords", []))
+    expected_keywords = {"portfolio", "hero"}
+    if not expected_keywords.issubset(keywords):
+        raise ValueError(f"missing keywords: {sorted(expected_keywords - keywords)}")
+    scalar = parse_frontmatter("---\nallowed-tools: Read, Write\n---\n").get("allowed-tools")
+    if scalar != "Read, Write":
+        raise ValueError(f"comma scalar mangled: {scalar!r}")
+    return "tags and keywords captured"
+
+
+def nested_frontmatter_map_check() -> str:
+    """Verify nested frontmatter maps are skipped and list descriptions coerced."""
+    skills = registry_by_name(load_registry(refresh=True))
+    entry = skills["nested_map_smoke"]
+    tags = set(entry.get("tags", []))
+    if "pre" in tags or "echo" in tags:
+        raise ValueError("nested map leaked into tags")
+    if "nested" not in tags:
+        raise ValueError("block list after nested map not captured")
+    if entry.get("description") != "First line Second line":
+        raise ValueError(f"description not coerced: {entry.get('description')!r}")
+    return "nested map skipped"
 
 
 def run_self_test() -> list[SelfTestResult]:
@@ -170,8 +202,30 @@ def run_self_test() -> list[SelfTestResult]:
             "---\n"
             "name: external-smoke\n"
             "description: Temporary external skill\n"
+            "tags:\n"
+            "  - smoketag\n"
+            "  - landing-page\n"
+            "keywords: [portfolio, hero]\n"
+            "allowed-tools: Read, Write\n"
             "---\n\n"
             "# External Smoke\n",
+            encoding="utf-8",
+        )
+        nested_skill = external_root / "nested-map-smoke"
+        nested_skill.mkdir(parents=True)
+        (nested_skill / "SKILL.md").write_text(
+            "---\n"
+            "name: nested-map-smoke\n"
+            "description:\n"
+            "  - First line\n"
+            "  - Second line\n"
+            "hooks:\n"
+            "  pre: echo hi\n"
+            "  post: echo bye\n"
+            "tags:\n"
+            "  - nested\n"
+            "---\n\n"
+            "# Nested Map Smoke\n",
             encoding="utf-8",
         )
         old_skill_sources = os.environ.get("AIOS_SKILL_SOURCES")
@@ -191,6 +245,18 @@ def run_self_test() -> list[SelfTestResult]:
                 run_step(
                     "load external skill",
                     lambda: load_skills(["external_smoke"])[:40],
+                )
+            )
+            results.append(
+                run_step(
+                    "parse external list frontmatter",
+                    lambda: external_frontmatter_lists_check(),
+                )
+            )
+            results.append(
+                run_step(
+                    "skip nested frontmatter map",
+                    lambda: nested_frontmatter_map_check(),
                 )
             )
         finally:

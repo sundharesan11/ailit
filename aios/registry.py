@@ -51,22 +51,103 @@ def home_relative_label(path: Path) -> str:
         return path.resolve().as_posix()
 
 
-def parse_frontmatter(text: str) -> dict[str, str]:
-    """Parse a simple YAML frontmatter block from a SKILL.md file."""
+def parse_flow_list(value: str) -> list[str] | None:
+    """Parse a flow-style YAML list like `[a, b]`, or return None."""
+    if not (value.startswith("[") and value.endswith("]")):
+        return None
+    items = [item.strip().strip("\"'") for item in value[1:-1].split(",")]
+    return [item for item in items if item]
+
+
+def parse_block_list(lines: list[str], start: int) -> tuple[list[str], int] | None:
+    """Parse an indented `- item` block list starting at `start`.
+
+    Returns the items and the index after the block, or None when the
+    indented content is not a plain list (for example a nested map), in
+    which case the caller should skip the key entirely.
+    """
+    items: list[str] = []
+    cursor = start
+    while cursor < len(lines):
+        line = lines[cursor]
+        if line.strip() == "---" or not line.startswith((" ", "\t")):
+            break
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            item = stripped[2:].strip().strip("\"'")
+            if item:
+                items.append(item)
+            cursor += 1
+            continue
+        if stripped == "-":
+            cursor += 1
+            continue
+        return None
+    if not items:
+        return None
+    return items, cursor
+
+
+def parse_frontmatter(text: str) -> dict[str, str | list[str]]:
+    """Parse a simple YAML frontmatter block from a SKILL.md file.
+
+    Supports scalar values, flow-style lists (`tags: [a, b]`), and
+    block-style lists (`tags:` followed by indented `- item` lines).
+    Nested maps and other indented structures are skipped, preserving the
+    previous behavior for frontmatter such as `hooks:` blocks.
+    """
     if not text.startswith("---"):
         return {}
 
     lines = text.splitlines()
-    metadata: dict[str, str] = {}
-    for line in lines[1:]:
+    metadata: dict[str, str | list[str]] = {}
+    index = 1
+    while index < len(lines):
+        line = lines[index]
         if line.strip() == "---":
             break
         if not line or line.startswith((" ", "\t")) or ":" not in line:
+            index += 1
             continue
         key, value = line.split(":", 1)
-        value = value.strip().strip("\"'")
-        metadata[key.strip()] = value
+        key = key.strip()
+        value = value.strip()
+        if value:
+            flow_list = parse_flow_list(value)
+            metadata[key] = flow_list if flow_list is not None else value.strip("\"'")
+            index += 1
+            continue
+        block = parse_block_list(lines, index + 1)
+        if block is not None:
+            items, index = block
+            metadata[key] = items
+            continue
+        index += 1
     return metadata
+
+
+def frontmatter_str(frontmatter: dict[str, str | list[str]], key: str) -> str | None:
+    """Return a frontmatter value coerced to a string, or None."""
+    value = frontmatter.get(key)
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return " ".join(str(item) for item in value).strip() or None
+    return str(value).strip() or None
+
+
+def frontmatter_terms(frontmatter: dict[str, str | list[str]], key: str) -> list[str]:
+    """Return frontmatter list values as matcher-friendly lowercase tokens."""
+    value = frontmatter.get(key)
+    if value is None:
+        return []
+    items = value if isinstance(value, list) else str(value).split(",")
+    terms: list[str] = []
+    for item in items:
+        for token in tokenize_text(str(item)):
+            if token not in terms:
+                terms.append(token)
+    return terms
 
 
 def markdown_title(text: str) -> str | None:
@@ -187,10 +268,10 @@ def normalize_external_skill(source_root: Path, skill_md_path: Path) -> dict[str
     """Convert an installed external SKILL.md into registry metadata."""
     text = skill_md_path.read_text(encoding="utf-8", errors="ignore")
     frontmatter = parse_frontmatter(text)
-    raw_name = frontmatter.get("name") or skill_md_path.parent.name
+    raw_name = frontmatter_str(frontmatter, "name") or skill_md_path.parent.name
     name = slugify_name(raw_name)
     title = markdown_title(text) or default_title(name)
-    description = frontmatter.get("description") or f"Installed skill from {source_label_for_root(source_root)}."
+    description = frontmatter_str(frontmatter, "description") or f"Installed skill from {source_label_for_root(source_root)}."
     source_label = source_label_for_root(source_root)
     display_path = home_relative_label(skill_md_path.parent)
 
@@ -198,6 +279,8 @@ def normalize_external_skill(source_root: Path, skill_md_path: Path) -> dict[str
     if title:
         tag_tokens.update(tokenize_text(title))
     tag_tokens.update({"external", source_label})
+    tag_tokens.update(frontmatter_terms(frontmatter, "tags"))
+    keywords = frontmatter_terms(frontmatter, "keywords")
 
     aliases = []
     for alias in (raw_name, skill_md_path.parent.name):
@@ -216,8 +299,8 @@ def normalize_external_skill(source_root: Path, skill_md_path: Path) -> dict[str
         "provider": source_label,
         "tags": sorted(tag_tokens),
         "aliases": aliases,
-        "keywords": [],
-        "version": frontmatter.get("version", "external"),
+        "keywords": sorted(keywords),
+        "version": frontmatter_str(frontmatter, "version") or "external",
         "status": "active",
         "trust_level": "reviewed",
         "entrypoint": "SKILL.md",
