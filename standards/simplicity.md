@@ -1,3 +1,10 @@
+---
+tags:
+  - simplicity
+  - design
+  - review
+---
+
 # Standard: Simplicity
 
 Use this standard when designing, reviewing, or implementing any engineering change.

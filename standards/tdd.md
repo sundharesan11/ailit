@@ -1,3 +1,17 @@
+---
+tags:
+  - test
+  - tests
+  - testing
+  - tdd
+  - bug
+  - bugfix
+  - regression
+  - behavior
+  - refactor
+  - refactoring
+---
+
 # Standard: Test-Driven Development
 
 Use this standard when adding behavior, fixing bugs, or changing contracts.

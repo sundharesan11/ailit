@@ -740,7 +740,13 @@ def build_parser() -> argparse.ArgumentParser:
     load_parser.add_argument("skill_names", nargs="+", help="Skill names to load.")
     load_parser.set_defaults(func=print_load)
 
-    build_parser_ = subparsers.add_parser("build", help="Build an AI coding prompt.")
+    build_parser_ = subparsers.add_parser(
+        "build",
+        help=(
+            "Build an AI coding prompt. Standards are selected by task "
+            "relevance; a baseline standard always loads."
+        ),
+    )
     build_parser_.add_argument("--task", required=True, help="User task.")
     build_parser_.add_argument(
         "--project",

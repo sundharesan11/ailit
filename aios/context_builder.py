@@ -83,6 +83,12 @@ def build_context_parts(
 
     solution_slugs = select_solution_slugs(task, solution_limit, solution_registry)
 
+    recommended_standards: list[str] = []
+    for match in matches:
+        for standard_name in match.get("recommended_standards", []) or []:
+            if standard_name not in recommended_standards:
+                recommended_standards.append(standard_name)
+
     if inline_names:
         skills_context = load_skills(inline_names, MAX_SKILL_CHARS, registry)
         if pointer_matches:
@@ -105,7 +111,7 @@ def build_context_parts(
         "inline_skill_names": inline_names,
         "pointer_skill_names": pointer_names,
         "solution_slugs": solution_slugs,
-        "standards": load_standards(),
+        "standards": load_standards(task, recommended_standards),
         "skills": skills_context,
         "solutions": solutions_context,
         "project_context": load_project_context(project),

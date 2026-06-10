@@ -21,6 +21,7 @@ from .project_init import init_project
 from .registry import index_skills, load_registry, parse_frontmatter, registry_by_name, validate_all_skills
 from .solution_registry import index_solutions, load_solution_registry, validate_all_solutions
 from .skill_importer import import_skill
+from .standards import load_standards
 
 
 @dataclass(frozen=True)
@@ -226,6 +227,43 @@ def eval_missing_skill_error_check() -> str:
     raise ValueError("expected KeyError for missing skill")
 
 
+def standards_no_task_check() -> str:
+    """Standards: the no-task call path still loads every standard."""
+    output = load_standards()
+    count = output.count("## Standard:")
+    if count < 3:
+        raise ValueError(f"expected all standards without a task, got {count}")
+    return f"all {count} standards load without a task"
+
+
+def standards_task_selection_check() -> str:
+    """Standards: an off-topic task loads only the always-on baseline."""
+    output = load_standards("style the hero layout")
+    if "## Standard: simplicity" not in output:
+        raise ValueError("always-on simplicity standard missing")
+    if "## Standard: tdd" in output or "## Standard: clean_architecture" in output:
+        raise ValueError("unrelated standards loaded for a styling task")
+    if "\ntags:" in output:
+        raise ValueError("raw frontmatter leaked into standards output")
+    return "baseline only for off-topic task"
+
+
+def standards_tag_match_check() -> str:
+    """Standards: tag-matched standards load for relevant tasks."""
+    output = load_standards("unit tests for the parser")
+    if "## Standard: tdd" not in output:
+        raise ValueError("tdd standard missing for a testing task")
+    return "tdd loads for testing task"
+
+
+def standards_recommended_check() -> str:
+    """Standards: skill-recommended standards are honored."""
+    output = load_standards("style the hero layout", ["clean_architecture"])
+    if "## Standard: clean_architecture" not in output:
+        raise ValueError("recommended standard not honored")
+    return "recommended standard honored"
+
+
 def match_retry_strategy_check() -> str:
     """Verify the canonical retry-strategy match still works."""
     matches = match_skills("design retry strategy")
@@ -253,6 +291,10 @@ def run_self_test() -> list[SelfTestResult]:
         )
     )
     results.append(run_step("match skills", match_retry_strategy_check))
+    results.append(run_step("standards no task", standards_no_task_check))
+    results.append(run_step("standards task selection", standards_task_selection_check))
+    results.append(run_step("standards tag match", standards_tag_match_check))
+    results.append(run_step("standards recommended", standards_recommended_check))
     results.append(run_step("load skill", lambda: load_skills(["retry_strategy"])[:40]))
     results.append(
         run_step(
