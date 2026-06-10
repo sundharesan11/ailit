@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from .adapters import SUPPORTED_BUILD_TOOLS
@@ -12,7 +13,7 @@ from .doctor import doctor_exit_code, format_doctor, run_doctor
 from .integrations import SUPPORTED_TOOLS, install_integrations
 from .inspector import inspect_project, inspection_to_markdown, write_detected_context
 from .loader import load_skills
-from .matcher import match_skills
+from .matcher import MIN_MATCH_SCORE, match_skills
 from .memory import (
     add_task,
     capture_global_update,
@@ -58,6 +59,12 @@ def print_match(args: argparse.Namespace) -> int:
     if args.limit > 0:
         matches = matches[: args.limit]
     print(json.dumps(matches, indent=2, ensure_ascii=False))
+    if not matches:
+        print(
+            f"note: no skills cleared the relevance threshold (MIN_MATCH_SCORE={MIN_MATCH_SCORE}). "
+            "Try broader terms, or `aios list-skills --query <term>` to check the skill exists.",
+            file=sys.stderr,
+        )
     return 0
 
 

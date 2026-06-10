@@ -50,6 +50,20 @@ aios prepare --task "add retry logic" --project . --tool codex
 
 In normal use, the coding agent should run this command itself.
 
+### How matching and context selection behave
+
+Two behaviors are worth knowing:
+
+- skill and solution matching uses a relevance threshold. Requests that do not
+  genuinely relate to a skill return fewer (or zero) matches instead of the
+  five highest-scoring entries. An empty result usually means the request needs
+  more specific terms, or the skill needs better tags (see the overlay section
+  in [Skills](skills.md)).
+- `prepare` and `build` inline only the top matches in full; further relevant
+  skills appear as one-line pointers that can be expanded with
+  `aios load <name>`. Standards load by task relevance with a small always-on
+  baseline, instead of all standards on every task.
+
 ### Skill discovery commands
 
 Use these to inspect the registry:

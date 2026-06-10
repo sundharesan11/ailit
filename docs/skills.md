@@ -286,6 +286,7 @@ The format is one object per skill, keyed by the slugified skill name shown in
 
 Rules:
 
+- an optional top-level `description` string can document the file itself
 - `tags`, `keywords`, and `aliases` must be lists of strings; all are optional
 - values are unioned into the registry entry at index time and tokenized for
   matching, so multiword terms like "core web vitals" become single tokens

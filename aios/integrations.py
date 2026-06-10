@@ -47,6 +47,8 @@ Use the returned context as working guidance. It may include:
 
 - global engineering standards
 - matched engineering skills
+- load-on-demand skill pointers (run `aios load <name>` to expand any
+  pointer line or truncated skill into its full content)
 - project `ai/` context files
 - the original user task
 
@@ -99,6 +101,9 @@ After a meaningful task, identify whether anything should be saved:
 
 - project-specific fact or decision -> `ai/decisions.md`, `ai/context.md`, or `ai/lessons.md`
 - reusable engineering lesson -> `~/engineering_brain/updates/` or a global skill
+- installed skill that never surfaced in prepare output -> add matching
+  tags to `~/engineering_brain/skills/external_overlay.json` (see
+  docs/skills.md), then verify with `aios doctor`
 
 Ask before writing durable memory unless the user requested it.
 """

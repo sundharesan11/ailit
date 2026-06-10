@@ -1,7 +1,7 @@
 ---
 title: "fix: Matcher relevance, prepare output diet, and readiness hygiene"
 type: fix
-status: active
+status: completed
 date: 2026-06-11
 ---
 

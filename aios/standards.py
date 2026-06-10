@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .matcher import request_tokens_for, tokenize
+from .matcher import request_tokens_for
 from .paths import STANDARDS_DIR
-from .registry import parse_frontmatter, strip_frontmatter
+from .registry import frontmatter_terms, parse_frontmatter, strip_frontmatter
 
 
 # Standards that load for every task regardless of relevance, so the
@@ -15,15 +15,13 @@ ALWAYS_ON_STANDARDS = ("simplicity",)
 
 
 def standard_matches_task(task_tokens: set[str], raw_text: str) -> bool:
-    """Return whether a standard's frontmatter tags match the task."""
+    """Return whether a standard's frontmatter tags match the task.
+
+    frontmatter_terms accepts block lists, flow lists, and comma scalars,
+    so all tag spellings behave the same as skill and overlay tags.
+    """
     frontmatter = parse_frontmatter(raw_text)
-    tags = frontmatter.get("tags", [])
-    if not isinstance(tags, list):
-        return False
-    tag_tokens: set[str] = set()
-    for tag in tags:
-        tag_tokens.update(tokenize(str(tag)))
-    return bool(task_tokens & tag_tokens)
+    return bool(task_tokens & set(frontmatter_terms(frontmatter, "tags")))
 
 
 def standard_section(path: Path, raw_text: str) -> str:

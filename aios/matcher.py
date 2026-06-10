@@ -44,7 +44,8 @@ DESCRIPTION_SCORE_CAP = 3
 # Minimum integral score a skill needs to count as relevant. Deliberately
 # set just above DESCRIPTION_SCORE_CAP so description-only overlap can
 # never clear the threshold on its own; at least one name, tag, keyword,
-# alias, or title hit is required.
+# or alias hit is required. A lone title hit (+3) is also insufficient —
+# it needs description support or a second hit to clear the threshold.
 MIN_MATCH_SCORE = 4
 
 
@@ -77,21 +78,23 @@ def score_skill(user_request: str, skill: dict[str, Any]) -> tuple[int, list[str
     name = str(skill.get("name", "")).lower()
     title = str(skill.get("title", "")).lower()
     description = str(skill.get("description", "")).lower()
-    tags = {str(tag).lower() for tag in skill.get("tags", [])}
-    keywords = {str(keyword).lower() for keyword in skill.get("keywords", [])}
 
     name_tokens = tokenize(name)
     title_tokens = tokenize(title)
     description_tokens = tokenize(description)
     alias_tokens = tokenize(" ".join(str(alias) for alias in skill.get("aliases", [])))
+    # Tags and keywords are tokenized so multi-word curated terms like
+    # "fault-tolerance" or "dead letter" still match single request tokens.
+    tag_tokens = tokenize(" ".join(str(tag) for tag in skill.get("tags", [])))
+    keyword_tokens = tokenize(" ".join(str(keyword) for keyword in skill.get("keywords", [])))
 
     searchable_tokens = (
         name_tokens
         | title_tokens
         | description_tokens
         | alias_tokens
-        | tokenize(" ".join(tags))
-        | tokenize(" ".join(keywords))
+        | tag_tokens
+        | keyword_tokens
     )
     matched_terms = sorted(request_tokens & searchable_tokens)
     score = 0
@@ -108,11 +111,11 @@ def score_skill(user_request: str, skill: dict[str, Any]) -> tuple[int, list[str
     for term in request_tokens:
         if term in name_tokens:
             score += 6
-        if term in tags:
+        if term in tag_tokens:
             score += 5
         if term in alias_tokens:
             score += 5
-        if term in keywords:
+        if term in keyword_tokens:
             score += 4
         if term in title_tokens:
             score += 3

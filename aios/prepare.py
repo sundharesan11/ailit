@@ -41,15 +41,14 @@ def append_prepare_audit(
     if len(task_preview) > 120:
         task_preview = task_preview[:117] + "..."
     skills = ",".join(skill_names) or "-"
-    if pointer_count:
-        skills += f",+{pointer_count}ptr"
     solutions = ",".join(solution_slugs) or "-"
     entry = (
         f"{timestamp} | command=prepare | tool={tool} | warnings={warning_count} "
-        f"| skills={skills} | solutions={solutions} | task={task_preview}\n"
+        f"| skills={skills} | pointers={pointer_count} | solutions={solutions} "
+        f"| task={task_preview}\n"
     )
-    existing = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
-    log_path.write_text(existing + entry, encoding="utf-8")
+    with log_path.open("a", encoding="utf-8") as handle:
+        handle.write(entry)
 
 
 def prepare_task(

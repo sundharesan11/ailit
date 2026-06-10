@@ -5,6 +5,7 @@ from __future__ import annotations
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .context_builder import build_context
 from .paths import PLUGIN_REGISTRY_PATH, PROVIDER_REGISTRY_PATH, REGISTRY_PATH
@@ -52,7 +53,7 @@ def is_template_like(path: Path) -> bool:
 def run_doctor(
     project_path: str | Path,
     include_context_smoke: bool = True,
-    registry: dict | None = None,
+    registry: dict[str, Any] | None = None,
 ) -> list[DoctorCheck]:
     """Run AI OS readiness checks for a project.
 

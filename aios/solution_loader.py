@@ -15,11 +15,14 @@ MAX_SOLUTION_CHARS = 2200
 
 
 def truncate_text(text: str, limit: int = MAX_SOLUTION_CHARS) -> str:
-    """Return a bounded text excerpt."""
+    """Return a bounded text excerpt, closing any unbalanced code fence."""
     normalized = text.strip()
     if len(normalized) <= limit:
         return normalized
-    return normalized[: limit - 4].rstrip() + "\n..."
+    cut = normalized[: max(limit - 4, 0)].rstrip()
+    if cut.count("```") % 2 == 1:
+        cut += "\n```"
+    return cut + "\n..."
 
 
 def load_solution_content(solution: dict[str, str], max_chars: int = MAX_SOLUTION_CHARS) -> str:

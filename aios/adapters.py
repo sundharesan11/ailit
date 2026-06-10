@@ -10,9 +10,15 @@ SUPPORTED_BUILD_TOOLS = ("universal", *SUPPORTED_TOOLS)
 
 def render_universal(context: dict[str, str | list[str]]) -> str:
     """Render the default AI OS prompt format."""
-    selected_skills = context["skill_names"]
+    # Label only fully inlined skills; pointer-only matches are listed in
+    # the skills section itself. Falls back to skill_names for callers
+    # passing the legacy context shape.
+    selected_skills = context.get("inline_skill_names", context.get("skill_names", []))
     assert isinstance(selected_skills, list)
     skill_label = ", ".join(selected_skills) if selected_skills else "none"
+    pointer_skills = context.get("pointer_skill_names", [])
+    if isinstance(pointer_skills, list) and pointer_skills:
+        skill_label += f" (pointers: {', '.join(pointer_skills)})"
     selected_solutions = context["solution_slugs"]
     assert isinstance(selected_solutions, list)
     solution_label = ", ".join(selected_solutions) if selected_solutions else "none"

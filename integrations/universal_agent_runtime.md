@@ -32,6 +32,8 @@ The context builder may return:
 
 - engineering standards from `~/engineering_brain/standards/`
 - matched skills from `~/engineering_brain/skills/`
+- load-on-demand skill pointers (run `aios load <name>` to expand any
+  pointer line or truncated skill into its full content)
 - project files from `ai/`
 - the original task
 
@@ -63,3 +65,5 @@ At the end of meaningful work, decide whether a lesson should be saved:
 
 - project-specific knowledge -> project `ai/`
 - reusable engineering knowledge -> `~/engineering_brain/updates/` or a global skill
+- installed skill that never surfaced in prepare output -> add matching tags to
+  `~/engineering_brain/skills/external_overlay.json`, then verify with `aios doctor`

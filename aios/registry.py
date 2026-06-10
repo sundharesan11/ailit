@@ -73,6 +73,9 @@ def parse_block_list(lines: list[str], start: int) -> tuple[list[str], int] | No
     cursor = start
     while cursor < len(lines):
         line = lines[cursor]
+        if not line.strip():
+            cursor += 1
+            continue
         if line.strip() == "---" or not line.startswith((" ", "\t")):
             break
         stripped = line.strip()
@@ -149,7 +152,7 @@ def frontmatter_str(frontmatter: dict[str, str | list[str]], key: str) -> str | 
     return str(value).strip() or None
 
 
-def frontmatter_terms(frontmatter: dict[str, str | list[str]], key: str) -> list[str]:
+def frontmatter_terms(frontmatter: dict[str, Any], key: str) -> list[str]:
     """Return frontmatter list values as matcher-friendly lowercase tokens."""
     value = frontmatter.get(key)
     if value is None:
@@ -351,6 +354,8 @@ def load_skill_overlay() -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
             raise ValueError("top-level 'skills' must be an object")
         normalized: dict[str, dict[str, Any]] = {}
         for key, value in entries.items():
+            if not str(key).strip():
+                raise ValueError("entry keys must be non-empty skill names")
             if not isinstance(value, dict):
                 raise ValueError(f"entry {key!r} must be an object")
             for field in OVERLAY_LIST_FIELDS:
@@ -361,7 +366,10 @@ def load_skill_overlay() -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
                     isinstance(item, str) for item in field_value
                 ):
                     raise ValueError(f"entry {key!r} field {field!r} must be a list of strings")
-            normalized[slugify_name(str(key))] = value
+            normalized_key = slugify_name(str(key))
+            if normalized_key in normalized:
+                raise ValueError(f"entry {key!r} collides with another key as {normalized_key!r}")
+            normalized[normalized_key] = value
         status["entry_count"] = len(normalized)
         return normalized, status
     except (json.JSONDecodeError, ValueError, OSError) as exc:

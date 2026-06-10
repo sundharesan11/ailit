@@ -36,7 +36,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    print(build_context(args.task, args.project, args.skill_limit, args.tool))
+    print(build_context(args.task, args.project, args.skill_limit, tool=args.tool))
     return 0
 
 

@@ -42,21 +42,22 @@ def score_solution(user_request: str, solution: dict[str, Any]) -> tuple[int, li
     slug = str(solution.get("slug", "")).lower()
     title = str(solution.get("title", "")).lower()
     summary = str(solution.get("summary", "")).lower()
-    tags = {str(tag).lower() for tag in solution.get("tags", [])}
-    stack = {str(tag).lower() for tag in solution.get("stack", [])}
-    keywords = {str(keyword).lower() for keyword in solution.get("keywords", [])}
 
     slug_tokens = tokenize(slug)
     title_tokens = tokenize(title)
     summary_tokens = tokenize(summary)
+    # Tokenized so multi-word tags/stack entries match single request tokens.
+    tag_tokens = tokenize(" ".join(str(tag) for tag in solution.get("tags", [])))
+    stack_tokens = tokenize(" ".join(str(item) for item in solution.get("stack", [])))
+    keyword_tokens = tokenize(" ".join(str(keyword) for keyword in solution.get("keywords", [])))
 
     searchable_tokens = (
         slug_tokens
         | title_tokens
         | summary_tokens
-        | tokenize(" ".join(tags))
-        | tokenize(" ".join(stack))
-        | tokenize(" ".join(keywords))
+        | tag_tokens
+        | stack_tokens
+        | keyword_tokens
         | tokenize(" ".join(str(ref) for ref in solution.get("source_refs", [])))
     )
     matched_terms = sorted(request_tokens & searchable_tokens)
@@ -74,11 +75,11 @@ def score_solution(user_request: str, solution: dict[str, Any]) -> tuple[int, li
     for term in request_tokens:
         if term in slug_tokens:
             score += 6
-        if term in tags:
+        if term in tag_tokens:
             score += 5
-        if term in stack:
+        if term in stack_tokens:
             score += 5
-        if term in keywords:
+        if term in keyword_tokens:
             score += 4
         if term in title_tokens:
             score += 3

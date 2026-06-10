@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from .context_builder import build_context
+from .context_builder import build_context, build_context_parts
 from .doctor import run_doctor
 from .inspector import inspect_project, write_detected_context
 from .integrations import install_integrations
@@ -57,6 +58,9 @@ def external_frontmatter_lists_check() -> str:
     scalar = parse_frontmatter("---\nallowed-tools: Read, Write\n---\n").get("allowed-tools")
     if scalar != "Read, Write":
         raise ValueError(f"comma scalar mangled: {scalar!r}")
+    blanked = parse_frontmatter("---\ntags:\n  - a\n\n  - b\n---\n").get("tags")
+    if blanked != ["a", "b"]:
+        raise ValueError(f"blank line broke block list: {blanked!r}")
     return "tags and keywords captured"
 
 
@@ -227,6 +231,141 @@ def eval_missing_skill_error_check() -> str:
     raise ValueError("expected KeyError for missing skill")
 
 
+def doctor_contract_current_check(project: Path) -> str:
+    """Verify a freshly generated AGENTS.md passes the doctor contract."""
+    checks = run_doctor(project, include_context_smoke=False)
+    if not any(check.name == "AGENTS.md" and check.status == "PASS" for check in checks):
+        raise ValueError("generated AGENTS.md failed contract check")
+    return "aios prepare accepted"
+
+
+def doctor_smoke_optional_check(project: Path) -> str:
+    """Verify the context-builder smoke test can be skipped."""
+    checks = run_doctor(project, include_context_smoke=False)
+    if any(check.name == "context builder" for check in checks):
+        raise ValueError("context smoke ran despite flag")
+    return "smoke skipped"
+
+
+def doctor_malformed_overlay_warn_check(project: Path, malformed_path: Path) -> str:
+    """Verify doctor reports WARN for a malformed overlay file."""
+    old_overlay = os.environ.get("AIOS_SKILL_OVERLAY")
+    os.environ["AIOS_SKILL_OVERLAY"] = str(malformed_path)
+    try:
+        checks = run_doctor(project, include_context_smoke=False)
+        if not any(
+            check.name == "skills overlay" and check.status == "WARN" for check in checks
+        ):
+            raise ValueError("malformed overlay did not surface as a doctor WARN")
+    finally:
+        if old_overlay is None:
+            os.environ.pop("AIOS_SKILL_OVERLAY", None)
+        else:
+            os.environ["AIOS_SKILL_OVERLAY"] = old_overlay
+    return "doctor warns on malformed overlay"
+
+
+def overlay_alias_check() -> str:
+    """Verify overlay keys can match a skill through its directory alias."""
+    skills = registry_by_name(load_registry(refresh=True))
+    entry = skills["fancy_name"]
+    if "aliastag" not in set(entry.get("tags", [])):
+        raise ValueError("overlay alias matching failed")
+    return "overlay matched via alias"
+
+
+def multiword_tag_check() -> str:
+    """Hyphenated and multi-word curated tags must match single request tokens."""
+    names = [match["name"] for match in match_skills("improve fault tolerance")]
+    if "retry_strategy" not in names:
+        raise ValueError(f"multi-word tag regression: {names[:5]}")
+    return "hyphenated tag matches"
+
+
+def boundary_probe(name: str, **overrides: object) -> dict:
+    """Build a synthetic registry skill entry for threshold boundary tests."""
+    entry: dict = {
+        "name": name,
+        "title": "Boundary Probe",
+        "description": "alpha bravo charlie delta",
+        "tags": [],
+        "aliases": [],
+        "keywords": [],
+        "version": "0.1.0",
+        "status": "active",
+        "trust_level": "local",
+        "path": "skills/backend/retry_strategy",
+        "entrypoint": "skill.md",
+    }
+    entry.update(overrides)
+    return entry
+
+
+def threshold_boundary_check() -> str:
+    """Pin MIN_MATCH_SCORE: capped description-only score 3 excluded, 4+ included."""
+    registry = {
+        "skills": [
+            boundary_probe("boundary_below"),
+            boundary_probe("boundary_exact", title="Alpha Tools", description="alpha"),
+            boundary_probe("boundary_above", keywords=["alpha"]),
+        ]
+    }
+    names = [match["name"] for match in match_skills("alpha bravo charlie delta", registry)]
+    if "boundary_below" in names:
+        raise ValueError("description-only score 3 cleared the threshold")
+    if "boundary_exact" not in names or "boundary_above" not in names:
+        raise ValueError(f"score >= 4 skills missing from matches: {names}")
+    return "threshold boundary pinned at 4"
+
+
+def recommended_standards_integration_check() -> str:
+    """recommended_standards on a matched skill flows through to standards."""
+    registry = {
+        "skills": [
+            boundary_probe(
+                "rec_probe",
+                title="Rec Probe",
+                description="zulu yankee xray",
+                tags=["zulu"],
+                recommended_standards=["clean_architecture"],
+            )
+        ]
+    }
+    parts = build_context_parts("zulu workflow", None, 5, 0, registry)
+    standards = parts["standards"]
+    assert isinstance(standards, str)
+    if "## Standard: clean_architecture" not in standards:
+        raise ValueError("recommended standard did not flow from matched skill")
+    return "recommended standard injected via matched skill"
+
+
+def fence_truncation_check() -> str:
+    """Truncation must close an unbalanced code fence before the tail."""
+    output = load_skills(["eval_fence_skill"], max_chars=80)
+    if output.count("```") % 2 != 0:
+        raise ValueError("truncation left an unclosed code fence")
+    if "Full content: aios load eval_fence_skill" not in output:
+        raise ValueError("truncation tail missing")
+    return "fences balanced after truncation"
+
+
+def audit_pointer_field_check(project: Path) -> str:
+    """The prepare audit log records pointer counts in a dedicated field."""
+    prepare_task(
+        task="landing page hero for my portfolio website",
+        project=project,
+        tool="codex",
+        skill_limit=5,
+        solution_limit=1,
+        include_doctor=False,
+    )
+    log_path = project / "ai" / "usage.log"
+    last_entry = log_path.read_text(encoding="utf-8").strip().splitlines()[-1]
+    if "| pointers=" not in last_entry:
+        raise ValueError(f"pointer field missing from audit entry: {last_entry}")
+    return "pointers field recorded"
+
+
 def legacy_agents_contract_check(project: Path) -> str:
     """Verify a legacy wrapper-only AGENTS.md still passes the doctor contract."""
     agents_path = project / "AGENTS.md"
@@ -312,6 +451,9 @@ def run_self_test() -> list[SelfTestResult]:
         )
     )
     results.append(run_step("match skills", match_retry_strategy_check))
+    results.append(run_step("match multiword tags", multiword_tag_check))
+    results.append(run_step("match threshold boundary", threshold_boundary_check))
+    results.append(run_step("recommended standards flow", recommended_standards_integration_check))
     results.append(run_step("standards no task", standards_no_task_check))
     results.append(run_step("standards task selection", standards_task_selection_check))
     results.append(run_step("standards tag match", standards_tag_match_check))
@@ -341,12 +483,7 @@ def run_self_test() -> list[SelfTestResult]:
         results.append(
             run_step(
                 "doctor contract current form",
-                lambda: "aios prepare accepted"
-                if any(
-                    check.name == "AGENTS.md" and check.status == "PASS"
-                    for check in run_doctor(project, include_context_smoke=False)
-                )
-                else (_ for _ in ()).throw(ValueError("generated AGENTS.md failed contract check")),
+                lambda: doctor_contract_current_check(project),
             )
         )
         results.append(
@@ -358,12 +495,7 @@ def run_self_test() -> list[SelfTestResult]:
         results.append(
             run_step(
                 "doctor smoke optional",
-                lambda: "smoke skipped"
-                if all(
-                    check.name != "context builder"
-                    for check in run_doctor(project, include_context_smoke=False)
-                )
-                else (_ for _ in ()).throw(ValueError("context smoke ran despite flag")),
+                lambda: doctor_smoke_optional_check(project),
             )
         )
         results.append(run_step("memory decision", lambda: log_decision(project, "Decision", "Context", "Decision", "Reason").path))
@@ -489,9 +621,20 @@ def run_self_test() -> list[SelfTestResult]:
             "# External Smoke Duplicate\n",
             encoding="utf-8",
         )
+        alias_skill = external_root / "plain-dir"
+        alias_skill.mkdir(parents=True)
+        (alias_skill / "SKILL.md").write_text(
+            "---\n"
+            "name: fancy-name\n"
+            "description: Alias probe skill\n"
+            "---\n\n"
+            "# Fancy Name\n",
+            encoding="utf-8",
+        )
         overlay_path = Path(tmp) / "overlay.json"
         overlay_path.write_text(
             '{"skills": {"external_smoke": {"tags": ["overlayterm"], "keywords": ["overlaykey"]}, '
+            '"plain_dir": {"tags": ["aliastag"]}, '
             '"ghost_skill": {"tags": ["ghost"]}}}',
             encoding="utf-8",
         )
@@ -531,11 +674,18 @@ def run_self_test() -> list[SelfTestResult]:
                 )
             )
             results.append(run_step("overlay enrichment", overlay_enrichment_check))
+            results.append(run_step("overlay alias match", overlay_alias_check))
             results.append(run_step("overlay unmatched key report", overlay_unmatched_check))
             results.append(
                 run_step(
                     "overlay malformed file safety",
                     lambda: overlay_malformed_check(malformed_overlay_path),
+                )
+            )
+            results.append(
+                run_step(
+                    "doctor malformed overlay warn",
+                    lambda: doctor_malformed_overlay_warn_check(project, malformed_overlay_path),
                 )
             )
         finally:
@@ -608,6 +758,19 @@ def run_self_test() -> list[SelfTestResult]:
             "# Eval Bare Design\n",
             encoding="utf-8",
         )
+        eval_fence = eval_root / "eval-fence-skill"
+        eval_fence.mkdir(parents=True)
+        (eval_fence / "SKILL.md").write_text(
+            "---\n"
+            "name: eval-fence-skill\n"
+            "description: Fence probe.\n"
+            "tags:\n"
+            "  - fenceprobe\n"
+            "---\n\n"
+            "# Fence Probe\n\n"
+            "```python\n" + "print('guidance')\n" * 30 + "```\n",
+            encoding="utf-8",
+        )
         eval_overlay_path = Path(tmp) / "match_eval_overlay.json"
         eval_overlay_path.write_text(
             '{"skills": {"eval_bare_design": {"tags": ["portfolio", "hero", "website", "section"]}}}',
@@ -629,6 +792,13 @@ def run_self_test() -> list[SelfTestResult]:
             results.append(run_step("eval load full content", eval_load_full_content_check))
             results.append(run_step("eval zero match fallback", eval_zero_match_fallback_check))
             results.append(run_step("eval missing skill error", eval_missing_skill_error_check))
+            results.append(run_step("eval fence truncation", fence_truncation_check))
+            results.append(
+                run_step(
+                    "eval audit pointer field",
+                    lambda: audit_pointer_field_check(project),
+                )
+            )
         finally:
             if old_skill_sources is None:
                 os.environ.pop("AIOS_SKILL_SOURCES", None)
@@ -711,8 +881,6 @@ def run_self_test() -> list[SelfTestResult]:
             path.unlink(missing_ok=True)
 
     # Remove temporary imported artifacts from global registries after tempdir cleanup.
-    import shutil
-
     shutil.rmtree(Path(__file__).resolve().parents[1] / "skills" / "vendor" / "aios_self_test", ignore_errors=True)
     shutil.rmtree(Path(__file__).resolve().parents[1] / "plugins" / "vendor" / "aios_self_test", ignore_errors=True)
     results.append(run_step("reindex skills cleanup", lambda: f"{index_skills()} skill(s)"))

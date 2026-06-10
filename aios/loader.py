@@ -42,8 +42,13 @@ def load_skill_content(skill: dict[str, Any], max_chars: int | None = None) -> s
 
     content = content_path.read_text(encoding="utf-8").strip()
     if max_chars is not None and len(content) > max_chars:
+        cut = content[: max(max_chars - 4, 0)].rstrip()
+        # Close an unbalanced code fence so the truncation tail and every
+        # later context section render outside the fence.
+        if cut.count("```") % 2 == 1:
+            cut += "\n```"
         content = (
-            content[: max_chars - 4].rstrip()
+            cut
             + "\n..."
             + f"\n\n(Truncated. Full content: aios load {skill['name']})"
         )

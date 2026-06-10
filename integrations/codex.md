@@ -27,6 +27,8 @@ aios prepare \
   --tool codex
 ```
 
+If `aios` is not on PATH, use `python3 ~/engineering_brain/scripts/aios.py` instead.
+
 Then Codex must use the returned standards, skills, and project context. Do not ask
 the user to run this command during normal chat-driven work.
 
