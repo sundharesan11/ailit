@@ -6,21 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from .paths import ROOT
+from .registry import strip_frontmatter
 from .solution_registry import load_solution_registry, solution_registry_by_slug
 
 
 LOADABLE_TRUST_LEVELS = {"draft", "reviewed", "vendor"}
 MAX_SOLUTION_CHARS = 2200
-
-
-def strip_frontmatter(text: str) -> str:
-    """Remove a leading YAML frontmatter block when present."""
-    if not text.startswith("---"):
-        return text
-    parts = text.split("\n---\n", 1)
-    if len(parts) == 2:
-        return parts[1].lstrip()
-    return text
 
 
 def truncate_text(text: str, limit: int = MAX_SOLUTION_CHARS) -> str:

@@ -22,11 +22,6 @@ INLINE_SKILL_CAP = 2
 POINTER_DESCRIPTION_CHARS = 140
 
 
-def select_skill_names(task: str, limit: int) -> list[str]:
-    """Select relevant skill names for a task."""
-    return [match["name"] for match in select_skill_matches(task, limit)]
-
-
 def select_skill_matches(
     task: str,
     limit: int,
@@ -64,6 +59,7 @@ def build_context_parts(
     project: str | None = None,
     skill_limit: int = 5,
     solution_limit: int = 3,
+    registry: dict[str, Any] | None = None,
 ) -> dict[str, str | list[str]]:
     """Build structured prompt parts for an AI coding assistant.
 
@@ -71,13 +67,12 @@ def build_context_parts(
     skill_limit (0 = unlimited) -> inline the first INLINE_SKILL_CAP in
     full (capped at MAX_SKILL_CHARS each) -> pointer lines for the rest.
     """
-    registry = load_registry()
+    registry = registry if registry is not None else load_registry()
     solution_registry = load_solution_registry()
 
     matches = select_skill_matches(task, skill_limit, registry)
-    inline_cap = INLINE_SKILL_CAP if skill_limit <= 0 else min(INLINE_SKILL_CAP, skill_limit)
-    inline_matches = matches[:inline_cap]
-    pointer_matches = matches[inline_cap:]
+    inline_matches = matches[:INLINE_SKILL_CAP]
+    pointer_matches = matches[INLINE_SKILL_CAP:]
     inline_names = [match["name"] for match in inline_matches]
     pointer_names = [match["name"] for match in pointer_matches]
 
@@ -85,7 +80,7 @@ def build_context_parts(
 
     recommended_standards: list[str] = []
     for match in matches:
-        for standard_name in match.get("recommended_standards", []) or []:
+        for standard_name in match.get("recommended_standards") or []:
             if standard_name not in recommended_standards:
                 recommended_standards.append(standard_name)
 

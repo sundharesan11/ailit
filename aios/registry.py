@@ -129,6 +129,16 @@ def parse_frontmatter(text: str) -> dict[str, str | list[str]]:
     return metadata
 
 
+def strip_frontmatter(text: str) -> str:
+    """Remove a leading YAML frontmatter block when present."""
+    if not text.startswith("---"):
+        return text
+    parts = text.split("\n---\n", 1)
+    if len(parts) == 2:
+        return parts[1].lstrip()
+    return text
+
+
 def frontmatter_str(frontmatter: dict[str, str | list[str]], key: str) -> str | None:
     """Return a frontmatter value coerced to a string, or None."""
     value = frontmatter.get(key)
@@ -373,12 +383,10 @@ def apply_skill_overlay(skill: dict[str, Any], overlay: dict[str, dict[str, Any]
         return None
     entry = overlay[key]
     tags = set(skill.get("tags", []))
-    for item in entry.get("tags", []):
-        tags.update(tokenize_text(item))
+    tags.update(frontmatter_terms(entry, "tags"))
     skill["tags"] = sorted(tags)
     keywords = set(skill.get("keywords", []))
-    for item in entry.get("keywords", []):
-        keywords.update(tokenize_text(item))
+    keywords.update(frontmatter_terms(entry, "keywords"))
     skill["keywords"] = sorted(keywords)
     aliases = list(skill.get("aliases", []))
     for alias in entry.get("aliases", []):

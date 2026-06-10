@@ -6,8 +6,7 @@ from pathlib import Path
 
 from .matcher import request_tokens_for, tokenize
 from .paths import STANDARDS_DIR
-from .registry import parse_frontmatter
-from .solution_loader import strip_frontmatter
+from .registry import parse_frontmatter, strip_frontmatter
 
 
 # Standards that load for every task regardless of relevance, so the

@@ -68,19 +68,6 @@ def request_tokens_for(text: str) -> set[str]:
     return {token for token in tokenize(text) if token not in STOPWORDS}
 
 
-def skill_search_text(skill: dict[str, Any]) -> str:
-    """Return a searchable text blob for a skill."""
-    parts = [
-        str(skill.get("name", "")),
-        str(skill.get("title", "")),
-        str(skill.get("description", "")),
-        " ".join(skill.get("tags", [])),
-        " ".join(skill.get("aliases", [])),
-        " ".join(skill.get("keywords", [])),
-    ]
-    return " ".join(parts)
-
-
 def score_skill(user_request: str, skill: dict[str, Any]) -> tuple[int, list[str]]:
     """Score a skill for a user request and return matched terms."""
     request_tokens = request_tokens_for(user_request)
@@ -98,7 +85,14 @@ def score_skill(user_request: str, skill: dict[str, Any]) -> tuple[int, list[str
     description_tokens = tokenize(description)
     alias_tokens = tokenize(" ".join(str(alias) for alias in skill.get("aliases", [])))
 
-    searchable_tokens = tokenize(skill_search_text(skill))
+    searchable_tokens = (
+        name_tokens
+        | title_tokens
+        | description_tokens
+        | alias_tokens
+        | tokenize(" ".join(tags))
+        | tokenize(" ".join(keywords))
+    )
     matched_terms = sorted(request_tokens & searchable_tokens)
     score = 0
 

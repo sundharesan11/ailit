@@ -8,6 +8,7 @@ from pathlib import Path
 from .adapters import render_for_tool
 from .context_builder import build_context_parts
 from .doctor import DoctorCheck, run_doctor
+from .registry import load_registry
 
 
 def readiness_warnings(checks: list[DoctorCheck]) -> list[str]:
@@ -61,9 +62,14 @@ def prepare_task(
 ) -> str:
     """Build a task prompt with project readiness warnings."""
     project_root = Path(project).expanduser().resolve()
-    checks = run_doctor(project_root, include_context_smoke=False) if include_doctor else []
+    registry = load_registry()
+    checks = (
+        run_doctor(project_root, include_context_smoke=False, registry=registry)
+        if include_doctor
+        else []
+    )
     warnings = readiness_warnings(checks)
-    context = build_context_parts(task, str(project_root), skill_limit, solution_limit)
+    context = build_context_parts(task, str(project_root), skill_limit, solution_limit, registry)
     prompt = render_for_tool(context, tool)
 
     skill_names = context.get("inline_skill_names", [])

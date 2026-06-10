@@ -33,20 +33,6 @@ def effective_status(solution: dict[str, Any]) -> str:
     return str(solution.get("status", "draft"))
 
 
-def solution_search_text(solution: dict[str, Any]) -> str:
-    """Return a searchable text blob for a solution."""
-    parts = [
-        str(solution.get("slug", "")),
-        str(solution.get("title", "")),
-        str(solution.get("summary", "")),
-        " ".join(solution.get("tags", [])),
-        " ".join(solution.get("stack", [])),
-        " ".join(solution.get("keywords", [])),
-        " ".join(solution.get("source_refs", [])),
-    ]
-    return " ".join(parts)
-
-
 def score_solution(user_request: str, solution: dict[str, Any]) -> tuple[int, list[str]]:
     """Score a solution for a user request and return matched terms."""
     request_tokens = request_tokens_for(user_request)
@@ -64,7 +50,15 @@ def score_solution(user_request: str, solution: dict[str, Any]) -> tuple[int, li
     title_tokens = tokenize(title)
     summary_tokens = tokenize(summary)
 
-    searchable_tokens = tokenize(solution_search_text(solution))
+    searchable_tokens = (
+        slug_tokens
+        | title_tokens
+        | summary_tokens
+        | tokenize(" ".join(tags))
+        | tokenize(" ".join(stack))
+        | tokenize(" ".join(keywords))
+        | tokenize(" ".join(str(ref) for ref in solution.get("source_refs", [])))
+    )
     matched_terms = sorted(request_tokens & searchable_tokens)
     score = 0
 

@@ -49,11 +49,16 @@ def is_template_like(path: Path) -> bool:
     return any(marker in text for marker in markers)
 
 
-def run_doctor(project_path: str | Path, include_context_smoke: bool = True) -> list[DoctorCheck]:
+def run_doctor(
+    project_path: str | Path,
+    include_context_smoke: bool = True,
+    registry: dict | None = None,
+) -> list[DoctorCheck]:
     """Run AI OS readiness checks for a project.
 
     `include_context_smoke=False` skips the context-builder smoke test;
-    prepare uses it because its own build proves the same thing.
+    prepare uses it because its own build proves the same thing. A
+    pre-loaded `registry` avoids a redundant rebuild on the prepare path.
     """
     root = Path(project_path).expanduser().resolve()
     checks: list[DoctorCheck] = []
@@ -130,7 +135,9 @@ def run_doctor(project_path: str | Path, include_context_smoke: bool = True) -> 
         )
     )
 
-    overlay_status = load_registry().get("skill_sources", {}).get("overlay") or {}
+    if registry is None:
+        registry = load_registry()
+    overlay_status = registry.get("skill_sources", {}).get("overlay") or {}
     if overlay_status.get("exists"):
         if not overlay_status.get("valid", True):
             checks.append(
