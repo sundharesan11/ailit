@@ -719,13 +719,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    match_parser = subparsers.add_parser("match", help="Match a request to skills.")
+    match_parser = subparsers.add_parser(
+        "match",
+        help="Match a request to skills. Skills below the relevance threshold are omitted.",
+    )
     match_parser.add_argument("request", help="User request to match.")
     match_parser.add_argument(
         "--limit",
         type=int,
         default=5,
-        help="Maximum number of matches to print. Use 0 for all matches.",
+        help=(
+            "Maximum number of matches to print. Use 0 for all matches. "
+            "Only skills above the relevance threshold are returned, so "
+            "fewer (or zero) results than the limit is normal."
+        ),
     )
     match_parser.set_defaults(func=print_match)
 

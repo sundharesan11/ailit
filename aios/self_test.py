@@ -117,6 +117,61 @@ def overlay_malformed_check(malformed_path: Path) -> str:
     return "malformed overlay ignored safely"
 
 
+def eval_portfolio_relevance_check() -> str:
+    """Eval: a realistic portfolio task matches the UI fixture, not the distractor."""
+    matches = match_skills(
+        "build the hero section and projects grid for my personal portfolio "
+        "website using Next.js and Tailwind"
+    )
+    names = [match["name"] for match in matches]
+    if "eval_ui_craft" not in names:
+        raise ValueError(f"correct skill missing from matches: {names[:5]}")
+    if "eval_workflow_research" in names:
+        raise ValueError("verbose-description distractor cleared the relevance threshold")
+    return "correct skill matched, distractor excluded"
+
+
+def eval_landing_page_check() -> str:
+    """Eval: stopword filtering must not break short web tasks."""
+    names = [match["name"] for match in match_skills("build a landing page")]
+    if "eval_ui_craft" not in names:
+        raise ValueError(f"landing page task no longer matches: {names[:5]}")
+    return "landing page task still matches"
+
+
+def eval_overlay_driven_check() -> str:
+    """Eval: overlay terms alone can make a metadata-poor skill matchable."""
+    names = [match["name"] for match in match_skills("portfolio hero section for my website")]
+    if "eval_bare_design" not in names:
+        raise ValueError(f"overlay-driven skill missing: {names[:5]}")
+    return "overlay terms drive the match"
+
+
+def eval_off_domain_check() -> str:
+    """Eval: web fixtures must not match an off-domain task."""
+    names = [match["name"] for match in match_skills("set up kafka consumer retries")]
+    leaked = {"eval_ui_craft", "eval_bare_design"} & set(names)
+    if leaked:
+        raise ValueError(f"web fixtures matched an off-domain task: {sorted(leaked)}")
+    return "web fixtures stay quiet off-domain"
+
+
+def eval_no_match_check() -> str:
+    """Eval: a nonsense task returns an empty result without raising."""
+    matches = match_skills("qwzxnotaword flibberzap")
+    if matches:
+        raise ValueError(f"expected no matches, got {[match['name'] for match in matches]}")
+    return "empty result handled"
+
+
+def match_retry_strategy_check() -> str:
+    """Verify the canonical retry-strategy match still works."""
+    matches = match_skills("design retry strategy")
+    if not matches:
+        raise ValueError("no matches for 'design retry strategy'")
+    return matches[0]["name"]
+
+
 def run_self_test() -> list[SelfTestResult]:
     """Run runtime smoke tests without external dependencies."""
     results: list[SelfTestResult] = []
@@ -135,9 +190,7 @@ def run_self_test() -> list[SelfTestResult]:
             lambda: "all solutions valid" if not validate_all_solutions() else "solution errors found",
         )
     )
-    results.append(
-        run_step("match skills", lambda: match_skills("design retry strategy")[0]["name"])
-    )
+    results.append(run_step("match skills", match_retry_strategy_check))
     results.append(run_step("load skill", lambda: load_skills(["retry_strategy"])[:40]))
     results.append(
         run_step(
@@ -332,6 +385,75 @@ def run_self_test() -> list[SelfTestResult]:
                     lambda: overlay_malformed_check(malformed_overlay_path),
                 )
             )
+        finally:
+            if old_skill_sources is None:
+                os.environ.pop("AIOS_SKILL_SOURCES", None)
+            else:
+                os.environ["AIOS_SKILL_SOURCES"] = old_skill_sources
+            if old_skill_overlay is None:
+                os.environ.pop("AIOS_SKILL_OVERLAY", None)
+            else:
+                os.environ["AIOS_SKILL_OVERLAY"] = old_skill_overlay
+
+        # Matcher eval fixtures: a well-tagged "correct" skill, a verbose
+        # trigger-list distractor shaped like installed ce-* skills, and a
+        # metadata-poor skill that only the overlay makes matchable.
+        # The live registry/skills.json is temporarily rewritten with this
+        # fixture-only external set; it self-heals on the next refresh.
+        eval_root = Path(tmp) / "match_eval_skills"
+        eval_ui = eval_root / "eval-ui-craft"
+        eval_ui.mkdir(parents=True)
+        (eval_ui / "SKILL.md").write_text(
+            "---\n"
+            "name: eval-ui-craft\n"
+            "description: Production-grade frontend interfaces with strong UX. For web pages, landing pages, dashboards, and UI components.\n"
+            "tags:\n"
+            "  - frontend\n"
+            "  - website\n"
+            "  - ui\n"
+            "  - landing\n"
+            "  - page\n"
+            "  - hero\n"
+            "keywords: [portfolio, tailwind, nextjs, next, js, responsive, grid, section]\n"
+            "---\n\n"
+            "# Eval UI Craft\n",
+            encoding="utf-8",
+        )
+        eval_distractor = eval_root / "eval-workflow-research"
+        eval_distractor.mkdir(parents=True)
+        (eval_distractor / "SKILL.md").write_text(
+            "---\n"
+            "name: eval-workflow-research\n"
+            "description: Use this when the user wants to build something, create a page, design a section, make a website update, add a grid, improve a portfolio, write a hero block, start a project, plan work, research options, debug an issue, review code, or asks for help with any personal task using common tools.\n"
+            "---\n\n"
+            "# Eval Workflow Research\n",
+            encoding="utf-8",
+        )
+        eval_bare = eval_root / "eval-bare-design"
+        eval_bare.mkdir(parents=True)
+        (eval_bare / "SKILL.md").write_text(
+            "---\n"
+            "name: eval-bare-design\n"
+            "description: General guidance.\n"
+            "---\n\n"
+            "# Eval Bare Design\n",
+            encoding="utf-8",
+        )
+        eval_overlay_path = Path(tmp) / "match_eval_overlay.json"
+        eval_overlay_path.write_text(
+            '{"skills": {"eval_bare_design": {"tags": ["portfolio", "hero", "website", "section"]}}}',
+            encoding="utf-8",
+        )
+        old_skill_sources = os.environ.get("AIOS_SKILL_SOURCES")
+        old_skill_overlay = os.environ.get("AIOS_SKILL_OVERLAY")
+        os.environ["AIOS_SKILL_SOURCES"] = str(eval_root)
+        os.environ["AIOS_SKILL_OVERLAY"] = str(eval_overlay_path)
+        try:
+            results.append(run_step("eval portfolio task relevance", eval_portfolio_relevance_check))
+            results.append(run_step("eval landing page stopword safety", eval_landing_page_check))
+            results.append(run_step("eval overlay driven match", eval_overlay_driven_check))
+            results.append(run_step("eval off-domain exclusion", eval_off_domain_check))
+            results.append(run_step("eval no-match empty result", eval_no_match_check))
         finally:
             if old_skill_sources is None:
                 os.environ.pop("AIOS_SKILL_SOURCES", None)
