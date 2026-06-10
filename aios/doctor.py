@@ -48,8 +48,12 @@ def is_template_like(path: Path) -> bool:
     return any(marker in text for marker in markers)
 
 
-def run_doctor(project_path: str | Path) -> list[DoctorCheck]:
-    """Run AI OS readiness checks for a project."""
+def run_doctor(project_path: str | Path, include_context_smoke: bool = True) -> list[DoctorCheck]:
+    """Run AI OS readiness checks for a project.
+
+    `include_context_smoke=False` skips the context-builder smoke test;
+    prepare uses it because its own build proves the same thing.
+    """
     root = Path(project_path).expanduser().resolve()
     checks: list[DoctorCheck] = []
 
@@ -126,11 +130,12 @@ def run_doctor(project_path: str | Path) -> list[DoctorCheck]:
             )
             checks.append(DoctorCheck("PASS", "skills overlay", detail))
 
-    try:
-        build_context("doctor smoke test", str(root), 1, 1, "universal")
-        checks.append(DoctorCheck("PASS", "context builder", "smoke test passed"))
-    except Exception as exc:  # noqa: BLE001 - doctor reports any failure
-        checks.append(DoctorCheck("FAIL", "context builder", str(exc)))
+    if include_context_smoke:
+        try:
+            build_context("doctor smoke test", str(root), 1, 1, "universal")
+            checks.append(DoctorCheck("PASS", "context builder", "smoke test passed"))
+        except Exception as exc:  # noqa: BLE001 - doctor reports any failure
+            checks.append(DoctorCheck("FAIL", "context builder", str(exc)))
 
     return checks
 

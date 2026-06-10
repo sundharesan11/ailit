@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from .paths import ROOT
 from .solution_registry import load_solution_registry, solution_registry_by_slug
@@ -49,9 +50,13 @@ def load_solution_content(solution: dict[str, str], max_chars: int = MAX_SOLUTIO
     )
 
 
-def load_solutions(solution_slugs: list[str], max_chars_per_solution: int = MAX_SOLUTION_CHARS) -> str:
+def load_solutions(
+    solution_slugs: list[str],
+    max_chars_per_solution: int = MAX_SOLUTION_CHARS,
+    registry: dict[str, Any] | None = None,
+) -> str:
     """Return combined Markdown context for selected solution slugs."""
-    registry = load_solution_registry()
+    registry = registry if registry is not None else load_solution_registry()
     solutions = solution_registry_by_slug(registry)
     sections: list[str] = []
     missing: list[str] = []

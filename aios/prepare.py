@@ -27,6 +27,7 @@ def append_prepare_audit(
     skill_names: list[str],
     solution_slugs: list[str],
     warning_count: int,
+    pointer_count: int = 0,
 ) -> None:
     """Append a lightweight prepare audit entry under project ai/usage.log."""
     ai_dir = project_root / "ai"
@@ -39,6 +40,8 @@ def append_prepare_audit(
     if len(task_preview) > 120:
         task_preview = task_preview[:117] + "..."
     skills = ",".join(skill_names) or "-"
+    if pointer_count:
+        skills += f",+{pointer_count}ptr"
     solutions = ",".join(solution_slugs) or "-"
     entry = (
         f"{timestamp} | command=prepare | tool={tool} | warnings={warning_count} "
@@ -58,14 +61,16 @@ def prepare_task(
 ) -> str:
     """Build a task prompt with project readiness warnings."""
     project_root = Path(project).expanduser().resolve()
-    checks = run_doctor(project_root) if include_doctor else []
+    checks = run_doctor(project_root, include_context_smoke=False) if include_doctor else []
     warnings = readiness_warnings(checks)
     context = build_context_parts(task, str(project_root), skill_limit, solution_limit)
     prompt = render_for_tool(context, tool)
 
-    skill_names = context.get("skill_names", [])
+    skill_names = context.get("inline_skill_names", [])
+    pointer_names = context.get("pointer_skill_names", [])
     solution_slugs = context.get("solution_slugs", [])
     assert isinstance(skill_names, list)
+    assert isinstance(pointer_names, list)
     assert isinstance(solution_slugs, list)
     append_prepare_audit(
         project_root,
@@ -74,6 +79,7 @@ def prepare_task(
         skill_names=skill_names,
         solution_slugs=solution_slugs,
         warning_count=len(warnings),
+        pointer_count=len(pointer_names),
     )
 
     if not warnings:

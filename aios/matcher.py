@@ -129,14 +129,17 @@ def score_skill(user_request: str, skill: dict[str, Any]) -> tuple[int, list[str
     return score, matched_terms
 
 
-def match_skills(user_request: str) -> list[dict[str, Any]]:
+def match_skills(
+    user_request: str,
+    registry: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     """Return relevant skills ranked by score.
 
     Skills scoring below MIN_MATCH_SCORE are excluded entirely, so an
     unrelated request returns fewer (or zero) matches instead of the
     highest-scoring noise.
     """
-    registry = load_registry()
+    registry = registry if registry is not None else load_registry()
     matches: list[dict[str, Any]] = []
 
     for skill in registry.get("skills", []):

@@ -1326,7 +1326,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--skill-limit",
         type=int,
         default=5,
-        help="Maximum number of matched skills to load.",
+        help=(
+            "Maximum number of matched skills considered after the relevance "
+            "threshold. Use 0 for all matches above the threshold. The top "
+            "matches are inlined in full; the rest become one-line pointers "
+            "loadable with `aios load <name>`."
+        ),
     )
     prepare_parser.add_argument(
         "--solution-limit",

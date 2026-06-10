@@ -11,7 +11,7 @@ from .context_builder import build_context
 from .doctor import run_doctor
 from .inspector import inspect_project, write_detected_context
 from .integrations import install_integrations
-from .loader import load_skills
+from .loader import MAX_SKILL_CHARS, load_skills
 from .matcher import match_skills
 from .memory import add_task, capture_lesson, log_decision
 from .memory import list_knowledge, promote_lesson_to_solution, write_solution_document
@@ -164,6 +164,68 @@ def eval_no_match_check() -> str:
     return "empty result handled"
 
 
+def eval_inline_pointer_check() -> str:
+    """Eval: above-cap matches render as pointers, not full content.
+
+    eval_bare_design always scores lowest of the three matching fixtures,
+    so it is deterministically the pointer.
+    """
+    output = build_context("landing page hero for my portfolio website", None, 5, 1, "universal")
+    if "More relevant skills" not in output or "aios load eval_bare_design" not in output:
+        names = [m["name"] for m in match_skills("landing page hero for my portfolio website")]
+        raise ValueError(f"pointer section missing from context output; matches={names}")
+    inline_count = output.count("## Skill:")
+    if inline_count != 2:
+        raise ValueError(f"expected 2 inline skills, got {inline_count}")
+    if "## Skill: Eval Bare Design" in output:
+        raise ValueError("pointer skill was inlined in full")
+    return "2 inline, 1 pointer"
+
+
+def eval_limit_zero_check() -> str:
+    """Eval: --skill-limit 0 means unlimited matches, still capped inlining."""
+    output = build_context("landing page hero for my portfolio website", None, 0, 1, "universal")
+    inline_count = output.count("## Skill:")
+    if inline_count != 2:
+        raise ValueError(f"limit 0 should inline the cap of 2, got {inline_count}")
+    return "limit 0 inlines the cap"
+
+
+def eval_truncation_check() -> str:
+    """Eval: oversized inlined skills truncate with a load-on-demand tail."""
+    output = build_context("landing page hero for my portfolio website", None, 5, 1, "universal")
+    if "Full content: aios load eval_ui_craft" not in output:
+        raise ValueError("truncation pointer tail missing")
+    return "oversized skill truncated with pointer tail"
+
+
+def eval_load_full_content_check() -> str:
+    """Eval: direct `aios load` returns full untruncated content."""
+    content = load_skills(["eval_ui_craft"])
+    if len(content) <= MAX_SKILL_CHARS:
+        raise ValueError("aios load returned truncated content")
+    return "aios load returns full content"
+
+
+def eval_zero_match_fallback_check() -> str:
+    """Eval: zero above-threshold matches fall back to the no-skills text."""
+    output = build_context("qwzxnotaword flibberzap", None, 5, 1, "universal")
+    if "No matching skills found" not in output:
+        raise ValueError("zero-match fallback text missing")
+    return "zero matches fall back cleanly"
+
+
+def eval_missing_skill_error_check() -> str:
+    """Eval: loading an uninstalled skill gives an actionable error."""
+    try:
+        load_skills(["ghost_missing_skill"])
+    except KeyError as exc:
+        if "list-skills" not in str(exc):
+            raise ValueError(f"unhelpful missing-skill error: {exc}")
+        return "actionable missing-skill error"
+    raise ValueError("expected KeyError for missing skill")
+
+
 def match_retry_strategy_check() -> str:
     """Verify the canonical retry-strategy match still works."""
     matches = match_skills("design retry strategy")
@@ -213,6 +275,17 @@ def run_self_test() -> list[SelfTestResult]:
         results.append(run_step("write detected context", lambda: write_detected_context(project)))
         results.append(run_step("install integrations", lambda: install_integrations(project).project_root))
         results.append(run_step("doctor", lambda: f"{len(run_doctor(project))} checks"))
+        results.append(
+            run_step(
+                "doctor smoke optional",
+                lambda: "smoke skipped"
+                if all(
+                    check.name != "context builder"
+                    for check in run_doctor(project, include_context_smoke=False)
+                )
+                else (_ for _ in ()).throw(ValueError("context smoke ran despite flag")),
+            )
+        )
         results.append(run_step("memory decision", lambda: log_decision(project, "Decision", "Context", "Decision", "Reason").path))
         results.append(run_step("memory lesson", lambda: capture_lesson(project, "Self Test Lesson", "Situation", "Lesson").path))
         results.append(run_step("memory task", lambda: add_task(project, "Task", "Goal").path))
@@ -416,7 +489,23 @@ def run_self_test() -> list[SelfTestResult]:
             "  - hero\n"
             "keywords: [portfolio, tailwind, nextjs, next, js, responsive, grid, section]\n"
             "---\n\n"
-            "# Eval UI Craft\n",
+            "# Eval UI Craft\n\n"
+            + "\n".join(f"- Keep interfaces simple and accessible, guidance line {i}." for i in range(120))
+            + "\n",
+            encoding="utf-8",
+        )
+        eval_page_speed = eval_root / "eval-page-speed"
+        eval_page_speed.mkdir(parents=True)
+        (eval_page_speed / "SKILL.md").write_text(
+            "---\n"
+            "name: eval-page-speed\n"
+            "description: Page speed checks.\n"
+            "tags:\n"
+            "  - website\n"
+            "  - page\n"
+            "  - performance\n"
+            "---\n\n"
+            "# Eval Page Speed\n",
             encoding="utf-8",
         )
         eval_distractor = eval_root / "eval-workflow-research"
@@ -454,6 +543,12 @@ def run_self_test() -> list[SelfTestResult]:
             results.append(run_step("eval overlay driven match", eval_overlay_driven_check))
             results.append(run_step("eval off-domain exclusion", eval_off_domain_check))
             results.append(run_step("eval no-match empty result", eval_no_match_check))
+            results.append(run_step("eval inline pointer split", eval_inline_pointer_check))
+            results.append(run_step("eval skill limit zero", eval_limit_zero_check))
+            results.append(run_step("eval truncation pointer tail", eval_truncation_check))
+            results.append(run_step("eval load full content", eval_load_full_content_check))
+            results.append(run_step("eval zero match fallback", eval_zero_match_fallback_check))
+            results.append(run_step("eval missing skill error", eval_missing_skill_error_check))
         finally:
             if old_skill_sources is None:
                 os.environ.pop("AIOS_SKILL_SOURCES", None)

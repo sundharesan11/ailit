@@ -95,13 +95,16 @@ def score_solution(user_request: str, solution: dict[str, Any]) -> tuple[int, li
     return score, matched_terms
 
 
-def match_solutions(user_request: str) -> list[dict[str, Any]]:
+def match_solutions(
+    user_request: str,
+    registry: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
     """Return relevant shared solutions ranked by score.
 
     Solutions scoring below MIN_MATCH_SCORE are excluded entirely, matching
     the skill matcher's relevance contract.
     """
-    registry = load_solution_registry()
+    registry = registry if registry is not None else load_solution_registry()
     matches: list[dict[str, Any]] = []
 
     for solution in registry.get("solutions", []):
