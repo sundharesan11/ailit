@@ -14,7 +14,7 @@ Use tool-native files only to bridge each tool into AGENTS.md and the AI OS runt
 From any project:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py integrate --project .
+aios integrate --project .
 ```
 
 This creates the shared and tool-specific instruction files that are safe to commit:
@@ -30,15 +30,15 @@ GEMINI.md
 Existing files are skipped by default. To deliberately recreate them:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py integrate --project . --overwrite
+aios integrate --project . --overwrite
 ```
 
 ## Install For Specific Tools
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py integrate --project . --tool codex
-python3 ~/engineering_brain/scripts/aios.py integrate --project . --tool claude cursor
-python3 ~/engineering_brain/scripts/aios.py integrate --project . --tool gemini antigravity windsurf
+aios integrate --project . --tool codex
+aios integrate --project . --tool claude cursor
+aios integrate --project . --tool gemini antigravity windsurf
 ```
 
 ## Runtime Contract
@@ -46,7 +46,7 @@ python3 ~/engineering_brain/scripts/aios.py integrate --project . --tool gemini 
 For non-trivial engineering tasks, the agent must run this command itself:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py prepare \
+aios prepare \
   --task "<current user request>" \
   --project . \
   --tool <current-tool>

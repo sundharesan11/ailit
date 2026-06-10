@@ -26,7 +26,7 @@ Before non-trivial software engineering work, the agent must run the local AI OS
 preparation command itself:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py prepare \\
+aios prepare \\
   --task "<current user request>" \\
   --project . \\
   --tool <current-tool>
@@ -34,6 +34,8 @@ python3 ~/engineering_brain/scripts/aios.py prepare \\
 
 Use the tool name when known: `codex`, `cursor`, `claude`, `gemini`, `antigravity`, or `windsurf`.
 If the tool is unknown, omit `--tool` to use the universal format.
+If `aios` is not on PATH, use the wrapper instead:
+`python3 ~/engineering_brain/scripts/aios.py prepare ...` with the same arguments.
 
 Do not ask the user to run this command or paste its output during normal work. Run it
 with the available shell/tool interface, read the returned context, and then proceed.
@@ -76,7 +78,7 @@ If the `ai/` folder exists, prefer it over assumptions:
 If the `ai/` folder is missing and the task is substantial, suggest:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py init-project --project .
+aios init-project --project .
 ```
 
 Do not overwrite existing project context unless the user explicitly asks.
@@ -120,11 +122,13 @@ GEMINI_MD = """@AGENTS.md
 
 Use the shared AI OS runtime instructions from `AGENTS.md`.
 
-When shell access is available, the agent must run the cross-project wrapper itself:
+When shell access is available, the agent must run the runtime command itself:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py prepare --task "<current user request>" --project . --tool gemini
+aios prepare --task "<current user request>" --project . --tool gemini
 ```
+
+If `aios` is not on PATH, use `python3 ~/engineering_brain/scripts/aios.py` instead.
 
 Do not ask the user to run the command during normal task work.
 Keep this file tool-specific; shared rules belong in `AGENTS.md`.
@@ -144,8 +148,10 @@ Before non-trivial implementation, debugging, refactoring, architecture, or revi
 Cursor Agent must run this command itself:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py prepare --task "<current user request>" --project . --tool cursor
+aios prepare --task "<current user request>" --project . --tool cursor
 ```
+
+If `aios` is not on PATH, use `python3 ~/engineering_brain/scripts/aios.py` instead.
 
 Do not ask the user to run it. Use the returned standards, skills, and project context
 while working.
@@ -167,8 +173,10 @@ Before non-trivial implementation, debugging, refactoring, architecture, or revi
 Cascade must run this command itself:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py prepare --task "<current user request>" --project . --tool windsurf
+aios prepare --task "<current user request>" --project . --tool windsurf
 ```
+
+If `aios` is not on PATH, use `python3 ~/engineering_brain/scripts/aios.py` instead.
 
 Do not ask the user to run it. Use the returned standards, skills, and project context
 while working.

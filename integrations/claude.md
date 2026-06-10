@@ -7,7 +7,7 @@ Claude Code uses `CLAUDE.md` for persistent project instructions.
 Install Claude integration:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py integrate --project . --tool claude
+aios integrate --project . --tool claude
 ```
 
 This creates:
@@ -24,7 +24,7 @@ CLAUDE.md
 Before non-trivial work, Claude must run this command itself:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py prepare \
+aios prepare \
   --task "<current user request>" \
   --project . \
   --tool claude

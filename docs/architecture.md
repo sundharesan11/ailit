@@ -133,6 +133,10 @@ This contains the templates and guidance for supported AI tools.
 These templates are the bridge between AIOS and the native instruction model of
 each tool.
 
+Note: the markdown files here are hand-maintained copies of the template
+constants in `aios/integrations.py`. When a template constant changes, update
+the matching file here in the same change so the two do not drift.
+
 ### `scripts/`
 
 This contains command wrappers and small utilities.

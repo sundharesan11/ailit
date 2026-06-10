@@ -20,7 +20,7 @@ The plugin registry tracks what exists. It does not automatically execute plugin
 ## Import A Plugin
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py import-plugin \
+aios import-plugin \
   --source ./plugin_pack \
   --provider community
 ```
@@ -43,14 +43,14 @@ registry/providers.json
 Use:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py list-plugins
-python3 ~/engineering_brain/scripts/aios.py list-providers
-python3 ~/engineering_brain/scripts/aios.py index-plugins
+aios list-plugins
+aios list-providers
+aios index-plugins
 ```
 
 After reviewing a plugin, approve it:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py trust-plugin example_provider_pack \
+aios trust-plugin example_provider_pack \
   --trust-level reviewed
 ```

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -74,10 +75,12 @@ def run_doctor(project_path: str | Path, include_context_smoke: bool = True) -> 
     agents_path = root / "AGENTS.md"
     if agents_path.exists():
         agents_text = agents_path.read_text(encoding="utf-8", errors="ignore")
-        if "aios.py prepare" in agents_text:
+        # Accept both the current `aios prepare` contract and the legacy
+        # wrapper form so already-onboarded projects keep passing.
+        if "aios prepare" in agents_text or "aios.py prepare" in agents_text:
             checks.append(DoctorCheck("PASS", "AGENTS.md", "exists with AI OS runtime contract"))
         else:
-            checks.append(DoctorCheck("WARN", "AGENTS.md", "exists but does not mention aios.py prepare"))
+            checks.append(DoctorCheck("WARN", "AGENTS.md", "exists but does not mention aios prepare"))
     else:
         checks.append(DoctorCheck("WARN", "AGENTS.md", "missing"))
 
@@ -110,6 +113,20 @@ def run_doctor(project_path: str | Path, include_context_smoke: bool = True) -> 
             "PASS" if not skill_errors else "FAIL",
             "skill validation",
             "all skills valid" if not skill_errors else f"{len(skill_errors)} skill(s) invalid",
+        )
+    )
+
+    # Informational by design: machines using the documented python3
+    # wrapper fallback are supported, so a missing PATH entry must never
+    # surface as a prepare readiness warning.
+    aios_on_path = shutil.which("aios")
+    checks.append(
+        DoctorCheck(
+            "PASS",
+            "aios command",
+            f"on PATH at {aios_on_path}"
+            if aios_on_path
+            else "not on PATH - run scripts/install_aios_command.sh (the python3 wrapper still works)",
         )
     )
 

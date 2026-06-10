@@ -7,11 +7,14 @@ Use this instruction set for any coding agent that can read project instructions
 Before non-trivial engineering work, the agent must run:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py prepare \
+aios prepare \
   --task "<current user request>" \
   --project . \
   --tool <current-tool>
 ```
+
+If `aios` is not on PATH, use the wrapper instead:
+`python3 ~/engineering_brain/scripts/aios.py prepare ...` with the same arguments.
 
 Read the output before editing files.
 

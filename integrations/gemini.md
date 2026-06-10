@@ -7,7 +7,7 @@ Gemini CLI uses `GEMINI.md` context files by default.
 Install Gemini integration:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py integrate --project . --tool gemini
+aios integrate --project . --tool gemini
 ```
 
 This creates:
@@ -24,7 +24,7 @@ GEMINI.md
 Before non-trivial work, Gemini must run this command itself:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py prepare \
+aios prepare \
   --task "<current user request>" \
   --project . \
   --tool gemini

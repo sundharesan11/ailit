@@ -7,7 +7,7 @@ Cursor supports project rules under `.cursor/rules/`.
 Install Cursor integration:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py integrate --project . --tool cursor
+aios integrate --project . --tool cursor
 ```
 
 This creates:
@@ -22,7 +22,7 @@ AGENTS.md
 Before non-trivial work, Cursor Agent must run this command itself:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py prepare \
+aios prepare \
   --task "<current user request>" \
   --project . \
   --tool cursor

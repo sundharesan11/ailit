@@ -7,7 +7,7 @@ Windsurf Cascade supports workspace rules under `.windsurf/rules/` and can also 
 Install Windsurf integration:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py integrate --project . --tool windsurf
+aios integrate --project . --tool windsurf
 ```
 
 This creates:
@@ -22,7 +22,7 @@ AGENTS.md
 Before non-trivial work, Cascade must run this command itself:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py prepare \
+aios prepare \
   --task "<current user request>" \
   --project . \
   --tool windsurf

@@ -7,7 +7,7 @@ Codex should use the project `AGENTS.md` file as the shared instruction entry po
 Install shared project instructions:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py integrate --project . --tool codex
+aios integrate --project . --tool codex
 ```
 
 This creates:
@@ -21,7 +21,7 @@ AGENTS.md
 Before non-trivial work, Codex must run this command itself:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py prepare \
+aios prepare \
   --task "<current user request>" \
   --project . \
   --tool codex

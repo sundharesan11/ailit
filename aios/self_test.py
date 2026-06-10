@@ -227,6 +227,27 @@ def eval_missing_skill_error_check() -> str:
     raise ValueError("expected KeyError for missing skill")
 
 
+def legacy_agents_contract_check(project: Path) -> str:
+    """Verify a legacy wrapper-only AGENTS.md still passes the doctor contract."""
+    agents_path = project / "AGENTS.md"
+    original = agents_path.read_text(encoding="utf-8")
+    try:
+        agents_path.write_text(
+            "# AGENTS.md\n\nRun python3 ~/engineering_brain/scripts/aios.py prepare before work.\n",
+            encoding="utf-8",
+        )
+        check = next(
+            check
+            for check in run_doctor(project, include_context_smoke=False)
+            if check.name == "AGENTS.md"
+        )
+        if check.status != "PASS":
+            raise ValueError(f"legacy AGENTS.md flagged: {check.status} {check.detail}")
+    finally:
+        agents_path.write_text(original, encoding="utf-8")
+    return "legacy aios.py contract still accepted"
+
+
 def standards_no_task_check() -> str:
     """Standards: the no-task call path still loads every standard."""
     output = load_standards()
@@ -317,6 +338,23 @@ def run_self_test() -> list[SelfTestResult]:
         results.append(run_step("write detected context", lambda: write_detected_context(project)))
         results.append(run_step("install integrations", lambda: install_integrations(project).project_root))
         results.append(run_step("doctor", lambda: f"{len(run_doctor(project))} checks"))
+        results.append(
+            run_step(
+                "doctor contract current form",
+                lambda: "aios prepare accepted"
+                if any(
+                    check.name == "AGENTS.md" and check.status == "PASS"
+                    for check in run_doctor(project, include_context_smoke=False)
+                )
+                else (_ for _ in ()).throw(ValueError("generated AGENTS.md failed contract check")),
+            )
+        )
+        results.append(
+            run_step(
+                "doctor contract legacy form",
+                lambda: legacy_agents_contract_check(project),
+            )
+        )
         results.append(
             run_step(
                 "doctor smoke optional",
