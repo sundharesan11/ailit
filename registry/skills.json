@@ -5,7 +5,7 @@
     "local": {
       "path": "/Users/sundharesan/engineering_brain/skills",
       "display_path": "~/engineering_brain/skills",
-      "skill_count": 12
+      "skill_count": 15
     },
     "external": [
       {
@@ -21,10 +21,19 @@
         "path": "/Users/sundharesan/.codex/skills",
         "display_path": "~/.codex/skills",
         "exists": true,
-        "skill_count": 99,
+        "skill_count": 102,
         "source_kind": "codex_installed"
       }
-    ]
+    ],
+    "overlay": {
+      "path": "/Users/sundharesan/engineering_brain/skills/external_overlay.json",
+      "display_path": "~/engineering_brain/skills/external_overlay.json",
+      "exists": true,
+      "valid": true,
+      "entry_count": 5,
+      "matched_count": 5,
+      "unmatched_keys": []
+    }
   },
   "skills": [
     {
@@ -54,6 +63,54 @@
       "status": "active",
       "trust_level": "reviewed",
       "entrypoint": "SKILL.md"
+    },
+    {
+      "name": "accessibility_basics",
+      "title": "Accessibility Basics",
+      "description": "Practical accessibility guidance for building web pages and components that work with keyboards, screen readers, and assistive technology.",
+      "path": "skills/frontend/accessibility_basics",
+      "tags": [
+        "frontend",
+        "accessibility",
+        "accessible",
+        "a11y",
+        "web",
+        "website",
+        "ui"
+      ],
+      "aliases": [
+        "a11y",
+        "screen reader support",
+        "wcag basics"
+      ],
+      "keywords": [
+        "aria",
+        "contrast",
+        "keyboard",
+        "focus",
+        "semantic",
+        "alt",
+        "label",
+        "wcag",
+        "screen",
+        "reader",
+        "readers",
+        "site"
+      ],
+      "version": "0.1.0",
+      "status": "active",
+      "entrypoint": "skill.md",
+      "recommended_standards": [
+        "simplicity"
+      ],
+      "compatible_tools": [
+        "codex",
+        "claude-code",
+        "cursor",
+        "gemini-cli"
+      ],
+      "source": "local",
+      "source_type": "local"
     },
     {
       "name": "ad_creative",
@@ -2022,12 +2079,27 @@
         "codex",
         "design",
         "external",
-        "frontend"
+        "frontend",
+        "hero",
+        "interface",
+        "landing",
+        "portfolio",
+        "ui",
+        "web",
+        "website"
       ],
       "aliases": [
         "frontend-design"
       ],
-      "keywords": [],
+      "keywords": [
+        "component",
+        "css",
+        "js",
+        "next",
+        "nextjs",
+        "react",
+        "tailwind"
+      ],
       "version": "external",
       "status": "active",
       "trust_level": "reviewed",
@@ -2744,7 +2816,7 @@
     {
       "name": "openai_docs",
       "title": "OpenAI Docs",
-      "description": "Use when the user asks how to build with OpenAI products or APIs and needs up-to-date official documentation with citations, help choosing the latest model for a use case, or model upgrade and prompt-upgrade guidance; prioritize OpenAI docs MCP tools, use bundled references only as helper context, and restrict any fallback browsing to official OpenAI domains.",
+      "description": "Use when the user asks how to build with OpenAI products or APIs, asks about Codex itself or choosing Codex surfaces, needs up-to-date official documentation with citations, help choosing the latest model for a use case, or model upgrade and prompt-upgrade guidance; use OpenAI docs MCP tools for non-Codex docs questions, use the Codex manual helper first for broad Codex self-knowledge, and restrict fallback browsing to official OpenAI domains.",
       "path": "~/.codex/skills/.system/openai-docs",
       "source_path": "/Users/sundharesan/.codex/skills/.system/openai-docs",
       "source_root": "/Users/sundharesan/.codex/skills",
@@ -2781,14 +2853,21 @@
         "conversion",
         "cro",
         "external",
+        "landing",
         "optimization",
         "page",
-        "rate"
+        "rate",
+        "website"
       ],
       "aliases": [
         "page-cro"
       ],
-      "keywords": [],
+      "keywords": [
+        "copy",
+        "cta",
+        "funnel",
+        "signup"
+      ],
       "version": "external",
       "status": "active",
       "trust_level": "reviewed",
@@ -2924,9 +3003,61 @@
       "entrypoint": "SKILL.md"
     },
     {
+      "name": "playwright",
+      "title": "Playwright CLI Skill",
+      "description": "Use when the task requires automating a real browser from the terminal (navigation, form filling, snapshots, screenshots, data extraction, UI-flow debugging) via `playwright-cli` or the bundled wrapper script.",
+      "path": "~/.codex/skills/playwright",
+      "source_path": "/Users/sundharesan/.codex/skills/playwright",
+      "source_root": "/Users/sundharesan/.codex/skills",
+      "source": "external",
+      "source_type": "codex_installed",
+      "provider": "codex",
+      "tags": [
+        "cli",
+        "codex",
+        "external",
+        "playwright",
+        "skill"
+      ],
+      "aliases": [
+        "playwright"
+      ],
+      "keywords": [],
+      "version": "external",
+      "status": "active",
+      "trust_level": "reviewed",
+      "entrypoint": "SKILL.md"
+    },
+    {
+      "name": "playwright_interactive",
+      "title": "Playwright Interactive Skill",
+      "description": "Persistent browser and Electron interaction through `js_repl` for fast iterative UI debugging.",
+      "path": "~/.codex/skills/playwright-interactive",
+      "source_path": "/Users/sundharesan/.codex/skills/playwright-interactive",
+      "source_root": "/Users/sundharesan/.codex/skills",
+      "source": "external",
+      "source_type": "codex_installed",
+      "provider": "codex",
+      "tags": [
+        "codex",
+        "external",
+        "interactive",
+        "playwright",
+        "skill"
+      ],
+      "aliases": [
+        "playwright-interactive"
+      ],
+      "keywords": [],
+      "version": "external",
+      "status": "active",
+      "trust_level": "reviewed",
+      "entrypoint": "SKILL.md"
+    },
+    {
       "name": "plugin_creator",
       "title": "Plugin Creator",
-      "description": "Create and scaffold plugin directories for Codex with a required `.codex-plugin/plugin.json`, optional plugin folders/files, and baseline placeholders you can edit before publishing or testing. Use when Codex needs to create a new local plugin, add optional plugin structure, or generate or update repo-root `.agents/plugins/marketplace.json` entries for plugin ordering and availability metadata.",
+      "description": "Create and scaffold plugin directories for Codex with a required `.codex-plugin/plugin.json`, optional plugin folders/files, valid manifest defaults, and personal-marketplace entries by default. Use when Codex needs to create a new personal plugin, add optional plugin structure, generate or update marketplace entries for plugin ordering and availability metadata, or update an existing local plugin during development with the CLI-driven cachebuster and reinstall flow.",
       "path": "~/.codex/skills/.system/plugin-creator",
       "source_path": "/Users/sundharesan/.codex/skills/.system/plugin-creator",
       "source_root": "/Users/sundharesan/.codex/skills",
@@ -3433,6 +3564,50 @@
       "entrypoint": "SKILL.md"
     },
     {
+      "name": "responsive_layout",
+      "title": "Responsive Layout",
+      "description": "Layout guidance for web pages that adapt cleanly across mobile, tablet, and desktop using modern CSS.",
+      "path": "skills/frontend/responsive_layout",
+      "tags": [
+        "frontend",
+        "responsive",
+        "layout",
+        "css",
+        "web",
+        "website",
+        "mobile"
+      ],
+      "aliases": [
+        "responsive design",
+        "mobile first",
+        "breakpoints"
+      ],
+      "keywords": [
+        "grid",
+        "flexbox",
+        "breakpoint",
+        "viewport",
+        "media",
+        "container",
+        "tailwind",
+        "spacing"
+      ],
+      "version": "0.1.0",
+      "status": "active",
+      "entrypoint": "skill.md",
+      "recommended_standards": [
+        "simplicity"
+      ],
+      "compatible_tools": [
+        "codex",
+        "claude-code",
+        "cursor",
+        "gemini-cli"
+      ],
+      "source": "local",
+      "source_type": "local"
+    },
+    {
       "name": "retry_strategy",
       "title": "Retry Strategy",
       "description": "Best practices for retrying failed operations without amplifying failures or duplicating side effects.",
@@ -3607,6 +3782,31 @@
       "entrypoint": "SKILL.md"
     },
     {
+      "name": "screenshot",
+      "title": "Screenshot Capture",
+      "description": "Use when the user explicitly asks for a desktop or system screenshot (full screen, specific app or window, or a pixel region), or when tool-specific capture capabilities are unavailable and an OS-level capture is needed.",
+      "path": "~/.codex/skills/screenshot",
+      "source_path": "/Users/sundharesan/.codex/skills/screenshot",
+      "source_root": "/Users/sundharesan/.codex/skills",
+      "source": "external",
+      "source_type": "codex_installed",
+      "provider": "codex",
+      "tags": [
+        "capture",
+        "codex",
+        "external",
+        "screenshot"
+      ],
+      "aliases": [
+        "screenshot"
+      ],
+      "keywords": [],
+      "version": "external",
+      "status": "active",
+      "trust_level": "reviewed",
+      "entrypoint": "SKILL.md"
+    },
+    {
       "name": "security_lens_reviewer",
       "title": "Security Lens Reviewer",
       "description": "Evaluates planning documents for security gaps at the plan level -- auth/authz assumptions, data exposure risks, API surface vulnerabilities, and missing threat model elements. Spawned by the document-review skill.",
@@ -3696,12 +3896,20 @@
         "agents",
         "audit",
         "external",
-        "seo"
+        "search",
+        "seo",
+        "web",
+        "website"
       ],
       "aliases": [
         "seo-audit"
       ],
-      "keywords": [],
+      "keywords": [
+        "lighthouse",
+        "meta",
+        "ranking",
+        "sitemap"
+      ],
       "version": "external",
       "status": "active",
       "trust_level": "reviewed",
@@ -3923,14 +4131,20 @@
         "agents",
         "design",
         "external",
+        "frontend",
+        "mockup",
         "prompting",
+        "screen",
         "stitch",
         "ui"
       ],
       "aliases": [
         "stitch-ui-design"
       ],
-      "keywords": [],
+      "keywords": [
+        "stitch",
+        "wireframe"
+      ],
       "version": "external",
       "status": "active",
       "trust_level": "reviewed",
@@ -4256,13 +4470,34 @@
         "agents",
         "design",
         "external",
+        "frontend",
+        "hero",
+        "landing",
+        "layout",
+        "page",
+        "portfolio",
+        "responsive",
+        "section",
         "ui",
-        "ux"
+        "ux",
+        "web",
+        "website"
       ],
       "aliases": [
         "ui-ux-design"
       ],
-      "keywords": [],
+      "keywords": [
+        "component",
+        "css",
+        "footer",
+        "grid",
+        "js",
+        "navbar",
+        "next",
+        "nextjs",
+        "react",
+        "tailwind"
+      ],
       "version": "external",
       "status": "active",
       "trust_level": "reviewed",
@@ -4320,6 +4555,49 @@
       "status": "active",
       "trust_level": "reviewed",
       "entrypoint": "SKILL.md"
+    },
+    {
+      "name": "web_performance",
+      "title": "Web Performance",
+      "description": "Practical guidance for fast-loading web pages: images, fonts, scripts, and Core Web Vitals.",
+      "path": "skills/frontend/web_performance",
+      "tags": [
+        "frontend",
+        "performance",
+        "web",
+        "website",
+        "speed"
+      ],
+      "aliases": [
+        "page speed",
+        "core web vitals",
+        "lighthouse score"
+      ],
+      "keywords": [
+        "lighthouse",
+        "lcp",
+        "cls",
+        "vitals",
+        "lazy",
+        "font",
+        "bundle",
+        "image",
+        "cache"
+      ],
+      "version": "0.1.0",
+      "status": "active",
+      "entrypoint": "skill.md",
+      "recommended_standards": [
+        "simplicity"
+      ],
+      "compatible_tools": [
+        "codex",
+        "claude-code",
+        "cursor",
+        "gemini-cli"
+      ],
+      "source": "local",
+      "source_type": "local"
     },
     {
       "name": "web_researcher",
