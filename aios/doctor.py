@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from .context_builder import build_context
 from .paths import PLUGIN_REGISTRY_PATH, PROVIDER_REGISTRY_PATH, REGISTRY_PATH
 from .project_init import PROJECT_TEMPLATES
-from .registry import validate_all_skills
+from .registry import load_registry, validate_all_skills
 
 
 @dataclass(frozen=True)
@@ -48,8 +50,17 @@ def is_template_like(path: Path) -> bool:
     return any(marker in text for marker in markers)
 
 
-def run_doctor(project_path: str | Path) -> list[DoctorCheck]:
-    """Run AI OS readiness checks for a project."""
+def run_doctor(
+    project_path: str | Path,
+    include_context_smoke: bool = True,
+    registry: dict[str, Any] | None = None,
+) -> list[DoctorCheck]:
+    """Run AI OS readiness checks for a project.
+
+    `include_context_smoke=False` skips the context-builder smoke test;
+    prepare uses it because its own build proves the same thing. A
+    pre-loaded `registry` avoids a redundant rebuild on the prepare path.
+    """
     root = Path(project_path).expanduser().resolve()
     checks: list[DoctorCheck] = []
 
@@ -70,10 +81,12 @@ def run_doctor(project_path: str | Path) -> list[DoctorCheck]:
     agents_path = root / "AGENTS.md"
     if agents_path.exists():
         agents_text = agents_path.read_text(encoding="utf-8", errors="ignore")
-        if "aios.py prepare" in agents_text:
+        # Accept both the current `aios prepare` contract and the legacy
+        # wrapper form so already-onboarded projects keep passing.
+        if "aios prepare" in agents_text or "aios.py prepare" in agents_text:
             checks.append(DoctorCheck("PASS", "AGENTS.md", "exists with AI OS runtime contract"))
         else:
-            checks.append(DoctorCheck("WARN", "AGENTS.md", "exists but does not mention aios.py prepare"))
+            checks.append(DoctorCheck("WARN", "AGENTS.md", "exists but does not mention aios prepare"))
     else:
         checks.append(DoctorCheck("WARN", "AGENTS.md", "missing"))
 
@@ -109,11 +122,45 @@ def run_doctor(project_path: str | Path) -> list[DoctorCheck]:
         )
     )
 
-    try:
-        build_context("doctor smoke test", str(root), 1, 1, "universal")
-        checks.append(DoctorCheck("PASS", "context builder", "smoke test passed"))
-    except Exception as exc:  # noqa: BLE001 - doctor reports any failure
-        checks.append(DoctorCheck("FAIL", "context builder", str(exc)))
+    # Informational by design: machines using the documented python3
+    # wrapper fallback are supported, so a missing PATH entry must never
+    # surface as a prepare readiness warning.
+    aios_on_path = shutil.which("aios")
+    checks.append(
+        DoctorCheck(
+            "PASS",
+            "aios command",
+            f"on PATH at {aios_on_path}"
+            if aios_on_path
+            else "not on PATH - run scripts/install_aios_command.sh (the python3 wrapper still works)",
+        )
+    )
+
+    if registry is None:
+        registry = load_registry()
+    overlay_status = registry.get("skill_sources", {}).get("overlay") or {}
+    if overlay_status.get("exists"):
+        if not overlay_status.get("valid", True):
+            checks.append(
+                DoctorCheck("WARN", "skills overlay", "invalid JSON or schema - overlay ignored")
+            )
+        else:
+            unmatched = overlay_status.get("unmatched_keys", [])
+            # Informational by design: unmatched keys reflect machine-local
+            # skill installs, so they must never surface as prepare warnings.
+            detail = (
+                f"{overlay_status.get('entry_count', 0)} entries, all matched"
+                if not unmatched
+                else f"unmatched keys: {', '.join(unmatched)}"
+            )
+            checks.append(DoctorCheck("PASS", "skills overlay", detail))
+
+    if include_context_smoke:
+        try:
+            build_context("doctor smoke test", str(root), 1, 1, "universal")
+            checks.append(DoctorCheck("PASS", "context builder", "smoke test passed"))
+        except Exception as exc:  # noqa: BLE001 - doctor reports any failure
+            checks.append(DoctorCheck("FAIL", "context builder", str(exc)))
 
     return checks
 

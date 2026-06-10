@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from .paths import ROOT
+from .registry import strip_frontmatter
 from .solution_registry import load_solution_registry, solution_registry_by_slug
 
 
@@ -12,22 +14,15 @@ LOADABLE_TRUST_LEVELS = {"draft", "reviewed", "vendor"}
 MAX_SOLUTION_CHARS = 2200
 
 
-def strip_frontmatter(text: str) -> str:
-    """Remove a leading YAML frontmatter block when present."""
-    if not text.startswith("---"):
-        return text
-    parts = text.split("\n---\n", 1)
-    if len(parts) == 2:
-        return parts[1].lstrip()
-    return text
-
-
 def truncate_text(text: str, limit: int = MAX_SOLUTION_CHARS) -> str:
-    """Return a bounded text excerpt."""
+    """Return a bounded text excerpt, closing any unbalanced code fence."""
     normalized = text.strip()
     if len(normalized) <= limit:
         return normalized
-    return normalized[: limit - 4].rstrip() + "\n..."
+    cut = normalized[: max(limit - 4, 0)].rstrip()
+    if cut.count("```") % 2 == 1:
+        cut += "\n```"
+    return cut + "\n..."
 
 
 def load_solution_content(solution: dict[str, str], max_chars: int = MAX_SOLUTION_CHARS) -> str:
@@ -49,9 +44,13 @@ def load_solution_content(solution: dict[str, str], max_chars: int = MAX_SOLUTIO
     )
 
 
-def load_solutions(solution_slugs: list[str], max_chars_per_solution: int = MAX_SOLUTION_CHARS) -> str:
+def load_solutions(
+    solution_slugs: list[str],
+    max_chars_per_solution: int = MAX_SOLUTION_CHARS,
+    registry: dict[str, Any] | None = None,
+) -> str:
     """Return combined Markdown context for selected solution slugs."""
-    registry = load_solution_registry()
+    registry = registry if registry is not None else load_solution_registry()
     solutions = solution_registry_by_slug(registry)
     sections: list[str] = []
     missing: list[str] = []

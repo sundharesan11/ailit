@@ -23,7 +23,11 @@ def main() -> int:
         "--limit",
         type=int,
         default=5,
-        help="Maximum number of matches to print. Use 0 for all matches.",
+        help=(
+            "Maximum number of matches to print. Use 0 for all matches. "
+            "Only skills above the relevance threshold are returned, so "
+            "fewer (or zero) results than the limit is normal."
+        ),
     )
     args = parser.parse_args()
 

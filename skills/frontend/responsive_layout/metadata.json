@@ -1,0 +1,14 @@
+{
+  "name": "responsive_layout",
+  "title": "Responsive Layout",
+  "description": "Layout guidance for web pages that adapt cleanly across mobile, tablet, and desktop using modern CSS.",
+  "path": "skills/frontend/responsive_layout",
+  "tags": ["frontend", "responsive", "layout", "css", "web", "website", "mobile"],
+  "aliases": ["responsive design", "mobile first", "breakpoints"],
+  "keywords": ["grid", "flexbox", "breakpoint", "viewport", "media", "container", "tailwind", "spacing"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

@@ -11,6 +11,12 @@ from .registry import load_registry, registry_by_name
 
 LOADABLE_TRUST_LEVELS = {"local", "reviewed", "vendor"}
 
+# Cap applied when skill content is inlined into assembled context.
+# Mirrors MAX_SOLUTION_CHARS in solution_loader. Direct `aios load`
+# calls stay untruncated so the load-on-demand escape hatch always
+# returns full content.
+MAX_SKILL_CHARS = 2200
+
 
 def effective_trust_level(skill: dict[str, Any]) -> str:
     """Return the trust level used for loading."""
@@ -22,8 +28,8 @@ def effective_trust_level(skill: dict[str, Any]) -> str:
     return "local"
 
 
-def load_skill_content(skill: dict[str, Any]) -> str:
-    """Load one skill's entrypoint content."""
+def load_skill_content(skill: dict[str, Any], max_chars: int | None = None) -> str:
+    """Load one skill's entrypoint content, optionally truncated."""
     if skill.get("source_path"):
         skill_path = Path(skill["source_path"]).expanduser().resolve()
     else:
@@ -35,13 +41,31 @@ def load_skill_content(skill: dict[str, Any]) -> str:
         raise FileNotFoundError(f"Missing skill entrypoint: {content_path}")
 
     content = content_path.read_text(encoding="utf-8").strip()
+    if max_chars is not None and len(content) > max_chars:
+        cut = content[: max(max_chars - 4, 0)].rstrip()
+        # Close an unbalanced code fence so the truncation tail and every
+        # later context section render outside the fence.
+        if cut.count("```") % 2 == 1:
+            cut += "\n```"
+        content = (
+            cut
+            + "\n..."
+            + f"\n\n(Truncated. Full content: aios load {skill['name']})"
+        )
     title = skill.get("title", skill["name"])
     return f"## Skill: {title}\n\nSource: {skill['path']}/{entrypoint}\n\n{content}"
 
 
-def load_skills(skill_names: list[str]) -> str:
-    """Return combined Markdown context for selected skill names."""
-    registry = load_registry()
+def load_skills(
+    skill_names: list[str],
+    max_chars: int | None = None,
+    registry: dict[str, Any] | None = None,
+) -> str:
+    """Return combined Markdown context for selected skill names.
+
+    Content is untruncated by default; context assembly passes a cap.
+    """
+    registry = registry if registry is not None else load_registry()
     skills = registry_by_name(registry)
     sections: list[str] = []
     missing: list[str] = []
@@ -57,12 +81,13 @@ def load_skills(skill_names: list[str]) -> str:
                 f"Skill {name!r} has trust_level/status {trust_level!r} and is not loadable. "
                 "Set trust_level to reviewed, vendor, or local after review."
             )
-        sections.append(load_skill_content(skill))
+        sections.append(load_skill_content(skill, max_chars))
 
     if missing:
-        available = ", ".join(sorted(skills))
         raise KeyError(
-            f"Unknown skill(s): {', '.join(missing)}. Available skills: {available}"
+            f"Unknown skill(s): {', '.join(missing)}. The skill may have been "
+            "renamed or uninstalled since it was matched. Run `aios list-skills "
+            f"--query {missing[0]}` to find the current name."
         )
 
     return "\n\n---\n\n".join(sections)

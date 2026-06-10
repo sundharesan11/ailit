@@ -14,7 +14,7 @@ GEMINI.md
 Install Antigravity integration:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py integrate --project . --tool antigravity
+aios integrate --project . --tool antigravity
 ```
 
 ## Runtime Behavior
@@ -22,11 +22,13 @@ python3 ~/engineering_brain/scripts/aios.py integrate --project . --tool antigra
 Before non-trivial work, an Antigravity agent must run this command itself:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py prepare \
+aios prepare \
   --task "<current user request>" \
   --project . \
   --tool antigravity
 ```
+
+If `aios` is not on PATH, use `python3 ~/engineering_brain/scripts/aios.py` instead.
 
 Then it must use the returned standards, skills, and project context. Do not ask the
 user to run this command during normal chat-driven work.

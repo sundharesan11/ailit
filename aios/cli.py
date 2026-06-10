@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from .adapters import SUPPORTED_BUILD_TOOLS
@@ -12,7 +13,7 @@ from .doctor import doctor_exit_code, format_doctor, run_doctor
 from .integrations import SUPPORTED_TOOLS, install_integrations
 from .inspector import inspect_project, inspection_to_markdown, write_detected_context
 from .loader import load_skills
-from .matcher import match_skills
+from .matcher import MIN_MATCH_SCORE, match_skills
 from .memory import (
     add_task,
     capture_global_update,
@@ -58,6 +59,12 @@ def print_match(args: argparse.Namespace) -> int:
     if args.limit > 0:
         matches = matches[: args.limit]
     print(json.dumps(matches, indent=2, ensure_ascii=False))
+    if not matches:
+        print(
+            f"note: no skills cleared the relevance threshold (MIN_MATCH_SCORE={MIN_MATCH_SCORE}). "
+            "Try broader terms, or `aios list-skills --query <term>` to check the skill exists.",
+            file=sys.stderr,
+        )
     return 0
 
 
@@ -191,6 +198,17 @@ def print_list_skill_sources(args: argparse.Namespace) -> int:
         print(
             f"{source['label']} | exists={exists} | skill_count={source['skill_count']} "
             f"| path={source['display_path']}"
+        )
+
+    overlay = load_registry().get("skill_sources", {}).get("overlay") or {}
+    if overlay:
+        exists = "yes" if overlay.get("exists") else "no"
+        valid = "yes" if overlay.get("valid", True) else "no"
+        unmatched = ",".join(overlay.get("unmatched_keys", [])) or "none"
+        print(
+            f"overlay | exists={exists} | valid={valid} "
+            f"| entries={overlay.get('entry_count', 0)} | unmatched={unmatched} "
+            f"| path={overlay.get('display_path', '')}"
         )
     return 0
 
@@ -708,13 +726,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    match_parser = subparsers.add_parser("match", help="Match a request to skills.")
+    match_parser = subparsers.add_parser(
+        "match",
+        help="Match a request to skills. Skills below the relevance threshold are omitted.",
+    )
     match_parser.add_argument("request", help="User request to match.")
     match_parser.add_argument(
         "--limit",
         type=int,
         default=5,
-        help="Maximum number of matches to print. Use 0 for all matches.",
+        help=(
+            "Maximum number of matches to print. Use 0 for all matches. "
+            "Only skills above the relevance threshold are returned, so "
+            "fewer (or zero) results than the limit is normal."
+        ),
     )
     match_parser.set_defaults(func=print_match)
 
@@ -722,7 +747,13 @@ def build_parser() -> argparse.ArgumentParser:
     load_parser.add_argument("skill_names", nargs="+", help="Skill names to load.")
     load_parser.set_defaults(func=print_load)
 
-    build_parser_ = subparsers.add_parser("build", help="Build an AI coding prompt.")
+    build_parser_ = subparsers.add_parser(
+        "build",
+        help=(
+            "Build an AI coding prompt. Standards are selected by task "
+            "relevance; a baseline standard always loads."
+        ),
+    )
     build_parser_.add_argument("--task", required=True, help="User task.")
     build_parser_.add_argument(
         "--project",
@@ -1308,7 +1339,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--skill-limit",
         type=int,
         default=5,
-        help="Maximum number of matched skills to load.",
+        help=(
+            "Maximum number of matched skills considered after the relevance "
+            "threshold. Use 0 for all matches above the threshold. The top "
+            "matches are inlined in full; the rest become one-line pointers "
+            "loadable with `aios load <name>`."
+        ),
     )
     prepare_parser.add_argument(
         "--solution-limit",

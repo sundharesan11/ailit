@@ -3,24 +3,26 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-from .context_builder import build_context
+from .context_builder import build_context, build_context_parts
 from .doctor import run_doctor
 from .inspector import inspect_project, write_detected_context
 from .integrations import install_integrations
-from .loader import load_skills
+from .loader import MAX_SKILL_CHARS, load_skills
 from .matcher import match_skills
 from .memory import add_task, capture_lesson, log_decision
 from .memory import list_knowledge, promote_lesson_to_solution, write_solution_document
 from .plugins import import_plugin, index_plugins
 from .prepare import prepare_task
 from .project_init import init_project
-from .registry import index_skills, load_registry, validate_all_skills
+from .registry import index_skills, load_registry, parse_frontmatter, registry_by_name, validate_all_skills
 from .solution_registry import index_solutions, load_solution_registry, validate_all_solutions
 from .skill_importer import import_skill
+from .standards import load_standards
 
 
 @dataclass(frozen=True)
@@ -41,6 +43,395 @@ def run_step(name: str, fn) -> SelfTestResult:
         return SelfTestResult("FAIL", name, str(exc))
 
 
+def external_frontmatter_lists_check() -> str:
+    """Verify external SKILL.md list frontmatter reaches the registry."""
+    skills = registry_by_name(load_registry(refresh=True))
+    entry = skills["external_smoke"]
+    tags = set(entry.get("tags", []))
+    expected_tags = {"smoketag", "landing", "page"}
+    if not expected_tags.issubset(tags):
+        raise ValueError(f"missing tags: {sorted(expected_tags - tags)}")
+    keywords = set(entry.get("keywords", []))
+    expected_keywords = {"portfolio", "hero"}
+    if not expected_keywords.issubset(keywords):
+        raise ValueError(f"missing keywords: {sorted(expected_keywords - keywords)}")
+    scalar = parse_frontmatter("---\nallowed-tools: Read, Write\n---\n").get("allowed-tools")
+    if scalar != "Read, Write":
+        raise ValueError(f"comma scalar mangled: {scalar!r}")
+    blanked = parse_frontmatter("---\ntags:\n  - a\n\n  - b\n---\n").get("tags")
+    if blanked != ["a", "b"]:
+        raise ValueError(f"blank line broke block list: {blanked!r}")
+    return "tags and keywords captured"
+
+
+def nested_frontmatter_map_check() -> str:
+    """Verify nested frontmatter maps are skipped and list descriptions coerced."""
+    skills = registry_by_name(load_registry(refresh=True))
+    entry = skills["nested_map_smoke"]
+    tags = set(entry.get("tags", []))
+    if "pre" in tags or "echo" in tags:
+        raise ValueError("nested map leaked into tags")
+    if "nested" not in tags:
+        raise ValueError("block list after nested map not captured")
+    if entry.get("description") != "First line Second line":
+        raise ValueError(f"description not coerced: {entry.get('description')!r}")
+    return "nested map skipped"
+
+
+def overlay_enrichment_check() -> str:
+    """Verify overlay tags and keywords merge into both provider copies."""
+    skills = registry_by_name(load_registry(refresh=True))
+    entry = skills["external_smoke"]
+    if "overlayterm" not in set(entry.get("tags", [])):
+        raise ValueError("overlay tags not merged")
+    if "overlaykey" not in set(entry.get("keywords", [])):
+        raise ValueError("overlay keywords not merged")
+    duplicate = next(
+        (skill for name, skill in skills.items() if name.endswith("_external_smoke")),
+        None,
+    )
+    if duplicate is None:
+        raise ValueError("provider duplicate missing from registry")
+    if "overlayterm" not in set(duplicate.get("tags", [])):
+        raise ValueError("overlay not applied to provider duplicate")
+    return "overlay merged for both provider copies"
+
+
+def overlay_unmatched_check() -> str:
+    """Verify unmatched overlay keys are reported in registry sources."""
+    status = load_registry(refresh=True).get("skill_sources", {}).get("overlay", {})
+    unmatched = status.get("unmatched_keys", [])
+    if "ghost_skill" not in unmatched:
+        raise ValueError(f"expected ghost_skill unmatched, got {unmatched}")
+    return "unmatched overlay key reported"
+
+
+def overlay_malformed_check(malformed_path: Path) -> str:
+    """Verify a malformed overlay never breaks a registry build."""
+    old_overlay = os.environ.get("AIOS_SKILL_OVERLAY")
+    os.environ["AIOS_SKILL_OVERLAY"] = str(malformed_path)
+    try:
+        status = load_registry(refresh=True).get("skill_sources", {}).get("overlay", {})
+        if status.get("valid", True):
+            raise ValueError("malformed overlay not flagged as invalid")
+    finally:
+        if old_overlay is None:
+            os.environ.pop("AIOS_SKILL_OVERLAY", None)
+        else:
+            os.environ["AIOS_SKILL_OVERLAY"] = old_overlay
+    return "malformed overlay ignored safely"
+
+
+def eval_portfolio_relevance_check() -> str:
+    """Eval: a realistic portfolio task matches the UI fixture, not the distractor."""
+    matches = match_skills(
+        "build the hero section and projects grid for my personal portfolio "
+        "website using Next.js and Tailwind"
+    )
+    names = [match["name"] for match in matches]
+    if "eval_ui_craft" not in names:
+        raise ValueError(f"correct skill missing from matches: {names[:5]}")
+    if "eval_workflow_research" in names:
+        raise ValueError("verbose-description distractor cleared the relevance threshold")
+    return "correct skill matched, distractor excluded"
+
+
+def eval_landing_page_check() -> str:
+    """Eval: stopword filtering must not break short web tasks."""
+    names = [match["name"] for match in match_skills("build a landing page")]
+    if "eval_ui_craft" not in names:
+        raise ValueError(f"landing page task no longer matches: {names[:5]}")
+    return "landing page task still matches"
+
+
+def eval_overlay_driven_check() -> str:
+    """Eval: overlay terms alone can make a metadata-poor skill matchable."""
+    names = [match["name"] for match in match_skills("portfolio hero section for my website")]
+    if "eval_bare_design" not in names:
+        raise ValueError(f"overlay-driven skill missing: {names[:5]}")
+    return "overlay terms drive the match"
+
+
+def eval_off_domain_check() -> str:
+    """Eval: web fixtures must not match an off-domain task."""
+    names = [match["name"] for match in match_skills("set up kafka consumer retries")]
+    leaked = {"eval_ui_craft", "eval_bare_design"} & set(names)
+    if leaked:
+        raise ValueError(f"web fixtures matched an off-domain task: {sorted(leaked)}")
+    return "web fixtures stay quiet off-domain"
+
+
+def eval_no_match_check() -> str:
+    """Eval: a nonsense task returns an empty result without raising."""
+    matches = match_skills("qwzxnotaword flibberzap")
+    if matches:
+        raise ValueError(f"expected no matches, got {[match['name'] for match in matches]}")
+    return "empty result handled"
+
+
+def eval_inline_pointer_check() -> str:
+    """Eval: above-cap matches render as pointers, not full content.
+
+    eval_bare_design always scores lowest of the three matching fixtures,
+    so it is deterministically the pointer.
+    """
+    output = build_context("landing page hero for my portfolio website", None, 5, 1, "universal")
+    if "More relevant skills" not in output or "aios load eval_bare_design" not in output:
+        names = [m["name"] for m in match_skills("landing page hero for my portfolio website")]
+        raise ValueError(f"pointer section missing from context output; matches={names}")
+    inline_count = output.count("## Skill:")
+    if inline_count != 2:
+        raise ValueError(f"expected 2 inline skills, got {inline_count}")
+    if "## Skill: Eval Bare Design" in output:
+        raise ValueError("pointer skill was inlined in full")
+    return "2 inline, 1 pointer"
+
+
+def eval_limit_zero_check() -> str:
+    """Eval: --skill-limit 0 means unlimited matches, still capped inlining."""
+    output = build_context("landing page hero for my portfolio website", None, 0, 1, "universal")
+    inline_count = output.count("## Skill:")
+    if inline_count != 2:
+        raise ValueError(f"limit 0 should inline the cap of 2, got {inline_count}")
+    return "limit 0 inlines the cap"
+
+
+def eval_truncation_check() -> str:
+    """Eval: oversized inlined skills truncate with a load-on-demand tail."""
+    output = build_context("landing page hero for my portfolio website", None, 5, 1, "universal")
+    if "Full content: aios load eval_ui_craft" not in output:
+        raise ValueError("truncation pointer tail missing")
+    return "oversized skill truncated with pointer tail"
+
+
+def eval_load_full_content_check() -> str:
+    """Eval: direct `aios load` returns full untruncated content."""
+    content = load_skills(["eval_ui_craft"])
+    if len(content) <= MAX_SKILL_CHARS:
+        raise ValueError("aios load returned truncated content")
+    return "aios load returns full content"
+
+
+def eval_zero_match_fallback_check() -> str:
+    """Eval: zero above-threshold matches fall back to the no-skills text."""
+    output = build_context("qwzxnotaword flibberzap", None, 5, 1, "universal")
+    if "No matching skills found" not in output:
+        raise ValueError("zero-match fallback text missing")
+    return "zero matches fall back cleanly"
+
+
+def eval_missing_skill_error_check() -> str:
+    """Eval: loading an uninstalled skill gives an actionable error."""
+    try:
+        load_skills(["ghost_missing_skill"])
+    except KeyError as exc:
+        if "list-skills" not in str(exc):
+            raise ValueError(f"unhelpful missing-skill error: {exc}")
+        return "actionable missing-skill error"
+    raise ValueError("expected KeyError for missing skill")
+
+
+def doctor_contract_current_check(project: Path) -> str:
+    """Verify a freshly generated AGENTS.md passes the doctor contract."""
+    checks = run_doctor(project, include_context_smoke=False)
+    if not any(check.name == "AGENTS.md" and check.status == "PASS" for check in checks):
+        raise ValueError("generated AGENTS.md failed contract check")
+    return "aios prepare accepted"
+
+
+def doctor_smoke_optional_check(project: Path) -> str:
+    """Verify the context-builder smoke test can be skipped."""
+    checks = run_doctor(project, include_context_smoke=False)
+    if any(check.name == "context builder" for check in checks):
+        raise ValueError("context smoke ran despite flag")
+    return "smoke skipped"
+
+
+def doctor_malformed_overlay_warn_check(project: Path, malformed_path: Path) -> str:
+    """Verify doctor reports WARN for a malformed overlay file."""
+    old_overlay = os.environ.get("AIOS_SKILL_OVERLAY")
+    os.environ["AIOS_SKILL_OVERLAY"] = str(malformed_path)
+    try:
+        checks = run_doctor(project, include_context_smoke=False)
+        if not any(
+            check.name == "skills overlay" and check.status == "WARN" for check in checks
+        ):
+            raise ValueError("malformed overlay did not surface as a doctor WARN")
+    finally:
+        if old_overlay is None:
+            os.environ.pop("AIOS_SKILL_OVERLAY", None)
+        else:
+            os.environ["AIOS_SKILL_OVERLAY"] = old_overlay
+    return "doctor warns on malformed overlay"
+
+
+def overlay_alias_check() -> str:
+    """Verify overlay keys can match a skill through its directory alias."""
+    skills = registry_by_name(load_registry(refresh=True))
+    entry = skills["fancy_name"]
+    if "aliastag" not in set(entry.get("tags", [])):
+        raise ValueError("overlay alias matching failed")
+    return "overlay matched via alias"
+
+
+def multiword_tag_check() -> str:
+    """Hyphenated and multi-word curated tags must match single request tokens."""
+    names = [match["name"] for match in match_skills("improve fault tolerance")]
+    if "retry_strategy" not in names:
+        raise ValueError(f"multi-word tag regression: {names[:5]}")
+    return "hyphenated tag matches"
+
+
+def boundary_probe(name: str, **overrides: object) -> dict:
+    """Build a synthetic registry skill entry for threshold boundary tests."""
+    entry: dict = {
+        "name": name,
+        "title": "Boundary Probe",
+        "description": "alpha bravo charlie delta",
+        "tags": [],
+        "aliases": [],
+        "keywords": [],
+        "version": "0.1.0",
+        "status": "active",
+        "trust_level": "local",
+        "path": "skills/backend/retry_strategy",
+        "entrypoint": "skill.md",
+    }
+    entry.update(overrides)
+    return entry
+
+
+def threshold_boundary_check() -> str:
+    """Pin MIN_MATCH_SCORE: capped description-only score 3 excluded, 4+ included."""
+    registry = {
+        "skills": [
+            boundary_probe("boundary_below"),
+            boundary_probe("boundary_exact", title="Alpha Tools", description="alpha"),
+            boundary_probe("boundary_above", keywords=["alpha"]),
+        ]
+    }
+    names = [match["name"] for match in match_skills("alpha bravo charlie delta", registry)]
+    if "boundary_below" in names:
+        raise ValueError("description-only score 3 cleared the threshold")
+    if "boundary_exact" not in names or "boundary_above" not in names:
+        raise ValueError(f"score >= 4 skills missing from matches: {names}")
+    return "threshold boundary pinned at 4"
+
+
+def recommended_standards_integration_check() -> str:
+    """recommended_standards on a matched skill flows through to standards."""
+    registry = {
+        "skills": [
+            boundary_probe(
+                "rec_probe",
+                title="Rec Probe",
+                description="zulu yankee xray",
+                tags=["zulu"],
+                recommended_standards=["clean_architecture"],
+            )
+        ]
+    }
+    parts = build_context_parts("zulu workflow", None, 5, 0, registry)
+    standards = parts["standards"]
+    assert isinstance(standards, str)
+    if "## Standard: clean_architecture" not in standards:
+        raise ValueError("recommended standard did not flow from matched skill")
+    return "recommended standard injected via matched skill"
+
+
+def fence_truncation_check() -> str:
+    """Truncation must close an unbalanced code fence before the tail."""
+    output = load_skills(["eval_fence_skill"], max_chars=80)
+    if output.count("```") % 2 != 0:
+        raise ValueError("truncation left an unclosed code fence")
+    if "Full content: aios load eval_fence_skill" not in output:
+        raise ValueError("truncation tail missing")
+    return "fences balanced after truncation"
+
+
+def audit_pointer_field_check(project: Path) -> str:
+    """The prepare audit log records pointer counts in a dedicated field."""
+    prepare_task(
+        task="landing page hero for my portfolio website",
+        project=project,
+        tool="codex",
+        skill_limit=5,
+        solution_limit=1,
+        include_doctor=False,
+    )
+    log_path = project / "ai" / "usage.log"
+    last_entry = log_path.read_text(encoding="utf-8").strip().splitlines()[-1]
+    if "| pointers=" not in last_entry:
+        raise ValueError(f"pointer field missing from audit entry: {last_entry}")
+    return "pointers field recorded"
+
+
+def legacy_agents_contract_check(project: Path) -> str:
+    """Verify a legacy wrapper-only AGENTS.md still passes the doctor contract."""
+    agents_path = project / "AGENTS.md"
+    original = agents_path.read_text(encoding="utf-8")
+    try:
+        agents_path.write_text(
+            "# AGENTS.md\n\nRun python3 ~/engineering_brain/scripts/aios.py prepare before work.\n",
+            encoding="utf-8",
+        )
+        check = next(
+            check
+            for check in run_doctor(project, include_context_smoke=False)
+            if check.name == "AGENTS.md"
+        )
+        if check.status != "PASS":
+            raise ValueError(f"legacy AGENTS.md flagged: {check.status} {check.detail}")
+    finally:
+        agents_path.write_text(original, encoding="utf-8")
+    return "legacy aios.py contract still accepted"
+
+
+def standards_no_task_check() -> str:
+    """Standards: the no-task call path still loads every standard."""
+    output = load_standards()
+    count = output.count("## Standard:")
+    if count < 3:
+        raise ValueError(f"expected all standards without a task, got {count}")
+    return f"all {count} standards load without a task"
+
+
+def standards_task_selection_check() -> str:
+    """Standards: an off-topic task loads only the always-on baseline."""
+    output = load_standards("style the hero layout")
+    if "## Standard: simplicity" not in output:
+        raise ValueError("always-on simplicity standard missing")
+    if "## Standard: tdd" in output or "## Standard: clean_architecture" in output:
+        raise ValueError("unrelated standards loaded for a styling task")
+    if "\ntags:" in output:
+        raise ValueError("raw frontmatter leaked into standards output")
+    return "baseline only for off-topic task"
+
+
+def standards_tag_match_check() -> str:
+    """Standards: tag-matched standards load for relevant tasks."""
+    output = load_standards("unit tests for the parser")
+    if "## Standard: tdd" not in output:
+        raise ValueError("tdd standard missing for a testing task")
+    return "tdd loads for testing task"
+
+
+def standards_recommended_check() -> str:
+    """Standards: skill-recommended standards are honored."""
+    output = load_standards("style the hero layout", ["clean_architecture"])
+    if "## Standard: clean_architecture" not in output:
+        raise ValueError("recommended standard not honored")
+    return "recommended standard honored"
+
+
+def match_retry_strategy_check() -> str:
+    """Verify the canonical retry-strategy match still works."""
+    matches = match_skills("design retry strategy")
+    if not matches:
+        raise ValueError("no matches for 'design retry strategy'")
+    return matches[0]["name"]
+
+
 def run_self_test() -> list[SelfTestResult]:
     """Run runtime smoke tests without external dependencies."""
     results: list[SelfTestResult] = []
@@ -59,9 +450,14 @@ def run_self_test() -> list[SelfTestResult]:
             lambda: "all solutions valid" if not validate_all_solutions() else "solution errors found",
         )
     )
-    results.append(
-        run_step("match skills", lambda: match_skills("design retry strategy")[0]["name"])
-    )
+    results.append(run_step("match skills", match_retry_strategy_check))
+    results.append(run_step("match multiword tags", multiword_tag_check))
+    results.append(run_step("match threshold boundary", threshold_boundary_check))
+    results.append(run_step("recommended standards flow", recommended_standards_integration_check))
+    results.append(run_step("standards no task", standards_no_task_check))
+    results.append(run_step("standards task selection", standards_task_selection_check))
+    results.append(run_step("standards tag match", standards_tag_match_check))
+    results.append(run_step("standards recommended", standards_recommended_check))
     results.append(run_step("load skill", lambda: load_skills(["retry_strategy"])[:40]))
     results.append(
         run_step(
@@ -84,6 +480,24 @@ def run_self_test() -> list[SelfTestResult]:
         results.append(run_step("write detected context", lambda: write_detected_context(project)))
         results.append(run_step("install integrations", lambda: install_integrations(project).project_root))
         results.append(run_step("doctor", lambda: f"{len(run_doctor(project))} checks"))
+        results.append(
+            run_step(
+                "doctor contract current form",
+                lambda: doctor_contract_current_check(project),
+            )
+        )
+        results.append(
+            run_step(
+                "doctor contract legacy form",
+                lambda: legacy_agents_contract_check(project),
+            )
+        )
+        results.append(
+            run_step(
+                "doctor smoke optional",
+                lambda: doctor_smoke_optional_check(project),
+            )
+        )
         results.append(run_step("memory decision", lambda: log_decision(project, "Decision", "Context", "Decision", "Reason").path))
         results.append(run_step("memory lesson", lambda: capture_lesson(project, "Self Test Lesson", "Situation", "Lesson").path))
         results.append(run_step("memory task", lambda: add_task(project, "Task", "Goal").path))
@@ -170,12 +584,66 @@ def run_self_test() -> list[SelfTestResult]:
             "---\n"
             "name: external-smoke\n"
             "description: Temporary external skill\n"
+            "tags:\n"
+            "  - smoketag\n"
+            "  - landing-page\n"
+            "keywords: [portfolio, hero]\n"
+            "allowed-tools: Read, Write\n"
             "---\n\n"
             "# External Smoke\n",
             encoding="utf-8",
         )
+        nested_skill = external_root / "nested-map-smoke"
+        nested_skill.mkdir(parents=True)
+        (nested_skill / "SKILL.md").write_text(
+            "---\n"
+            "name: nested-map-smoke\n"
+            "description:\n"
+            "  - First line\n"
+            "  - Second line\n"
+            "hooks:\n"
+            "  pre: echo hi\n"
+            "  post: echo bye\n"
+            "tags:\n"
+            "  - nested\n"
+            "---\n\n"
+            "# Nested Map Smoke\n",
+            encoding="utf-8",
+        )
+        second_root = Path(tmp) / "external_skills_dup"
+        duplicate_skill = second_root / "external-smoke"
+        duplicate_skill.mkdir(parents=True)
+        (duplicate_skill / "SKILL.md").write_text(
+            "---\n"
+            "name: external-smoke\n"
+            "description: Duplicate provider copy\n"
+            "---\n\n"
+            "# External Smoke Duplicate\n",
+            encoding="utf-8",
+        )
+        alias_skill = external_root / "plain-dir"
+        alias_skill.mkdir(parents=True)
+        (alias_skill / "SKILL.md").write_text(
+            "---\n"
+            "name: fancy-name\n"
+            "description: Alias probe skill\n"
+            "---\n\n"
+            "# Fancy Name\n",
+            encoding="utf-8",
+        )
+        overlay_path = Path(tmp) / "overlay.json"
+        overlay_path.write_text(
+            '{"skills": {"external_smoke": {"tags": ["overlayterm"], "keywords": ["overlaykey"]}, '
+            '"plain_dir": {"tags": ["aliastag"]}, '
+            '"ghost_skill": {"tags": ["ghost"]}}}',
+            encoding="utf-8",
+        )
+        malformed_overlay_path = Path(tmp) / "overlay_malformed.json"
+        malformed_overlay_path.write_text('{"skills": [', encoding="utf-8")
         old_skill_sources = os.environ.get("AIOS_SKILL_SOURCES")
-        os.environ["AIOS_SKILL_SOURCES"] = str(external_root)
+        old_skill_overlay = os.environ.get("AIOS_SKILL_OVERLAY")
+        os.environ["AIOS_SKILL_SOURCES"] = os.pathsep.join([str(external_root), str(second_root)])
+        os.environ["AIOS_SKILL_OVERLAY"] = str(overlay_path)
         try:
             results.append(
                 run_step(
@@ -193,11 +661,153 @@ def run_self_test() -> list[SelfTestResult]:
                     lambda: load_skills(["external_smoke"])[:40],
                 )
             )
+            results.append(
+                run_step(
+                    "parse external list frontmatter",
+                    lambda: external_frontmatter_lists_check(),
+                )
+            )
+            results.append(
+                run_step(
+                    "skip nested frontmatter map",
+                    lambda: nested_frontmatter_map_check(),
+                )
+            )
+            results.append(run_step("overlay enrichment", overlay_enrichment_check))
+            results.append(run_step("overlay alias match", overlay_alias_check))
+            results.append(run_step("overlay unmatched key report", overlay_unmatched_check))
+            results.append(
+                run_step(
+                    "overlay malformed file safety",
+                    lambda: overlay_malformed_check(malformed_overlay_path),
+                )
+            )
+            results.append(
+                run_step(
+                    "doctor malformed overlay warn",
+                    lambda: doctor_malformed_overlay_warn_check(project, malformed_overlay_path),
+                )
+            )
         finally:
             if old_skill_sources is None:
                 os.environ.pop("AIOS_SKILL_SOURCES", None)
             else:
                 os.environ["AIOS_SKILL_SOURCES"] = old_skill_sources
+            if old_skill_overlay is None:
+                os.environ.pop("AIOS_SKILL_OVERLAY", None)
+            else:
+                os.environ["AIOS_SKILL_OVERLAY"] = old_skill_overlay
+
+        # Matcher eval fixtures: a well-tagged "correct" skill, a verbose
+        # trigger-list distractor shaped like installed ce-* skills, and a
+        # metadata-poor skill that only the overlay makes matchable.
+        # The live registry/skills.json is temporarily rewritten with this
+        # fixture-only external set; it self-heals on the next refresh.
+        eval_root = Path(tmp) / "match_eval_skills"
+        eval_ui = eval_root / "eval-ui-craft"
+        eval_ui.mkdir(parents=True)
+        (eval_ui / "SKILL.md").write_text(
+            "---\n"
+            "name: eval-ui-craft\n"
+            "description: Production-grade frontend interfaces with strong UX. For web pages, landing pages, dashboards, and UI components.\n"
+            "tags:\n"
+            "  - frontend\n"
+            "  - website\n"
+            "  - ui\n"
+            "  - landing\n"
+            "  - page\n"
+            "  - hero\n"
+            "keywords: [portfolio, tailwind, nextjs, next, js, responsive, grid, section]\n"
+            "---\n\n"
+            "# Eval UI Craft\n\n"
+            + "\n".join(f"- Keep interfaces simple and accessible, guidance line {i}." for i in range(120))
+            + "\n",
+            encoding="utf-8",
+        )
+        eval_page_speed = eval_root / "eval-page-speed"
+        eval_page_speed.mkdir(parents=True)
+        (eval_page_speed / "SKILL.md").write_text(
+            "---\n"
+            "name: eval-page-speed\n"
+            "description: Page speed checks.\n"
+            "tags:\n"
+            "  - website\n"
+            "  - page\n"
+            "  - performance\n"
+            "---\n\n"
+            "# Eval Page Speed\n",
+            encoding="utf-8",
+        )
+        eval_distractor = eval_root / "eval-workflow-research"
+        eval_distractor.mkdir(parents=True)
+        (eval_distractor / "SKILL.md").write_text(
+            "---\n"
+            "name: eval-workflow-research\n"
+            "description: Use this when the user wants to build something, create a page, design a section, make a website update, add a grid, improve a portfolio, write a hero block, start a project, plan work, research options, debug an issue, review code, or asks for help with any personal task using common tools.\n"
+            "---\n\n"
+            "# Eval Workflow Research\n",
+            encoding="utf-8",
+        )
+        eval_bare = eval_root / "eval-bare-design"
+        eval_bare.mkdir(parents=True)
+        (eval_bare / "SKILL.md").write_text(
+            "---\n"
+            "name: eval-bare-design\n"
+            "description: General guidance.\n"
+            "---\n\n"
+            "# Eval Bare Design\n",
+            encoding="utf-8",
+        )
+        eval_fence = eval_root / "eval-fence-skill"
+        eval_fence.mkdir(parents=True)
+        (eval_fence / "SKILL.md").write_text(
+            "---\n"
+            "name: eval-fence-skill\n"
+            "description: Fence probe.\n"
+            "tags:\n"
+            "  - fenceprobe\n"
+            "---\n\n"
+            "# Fence Probe\n\n"
+            "```python\n" + "print('guidance')\n" * 30 + "```\n",
+            encoding="utf-8",
+        )
+        eval_overlay_path = Path(tmp) / "match_eval_overlay.json"
+        eval_overlay_path.write_text(
+            '{"skills": {"eval_bare_design": {"tags": ["portfolio", "hero", "website", "section"]}}}',
+            encoding="utf-8",
+        )
+        old_skill_sources = os.environ.get("AIOS_SKILL_SOURCES")
+        old_skill_overlay = os.environ.get("AIOS_SKILL_OVERLAY")
+        os.environ["AIOS_SKILL_SOURCES"] = str(eval_root)
+        os.environ["AIOS_SKILL_OVERLAY"] = str(eval_overlay_path)
+        try:
+            results.append(run_step("eval portfolio task relevance", eval_portfolio_relevance_check))
+            results.append(run_step("eval landing page stopword safety", eval_landing_page_check))
+            results.append(run_step("eval overlay driven match", eval_overlay_driven_check))
+            results.append(run_step("eval off-domain exclusion", eval_off_domain_check))
+            results.append(run_step("eval no-match empty result", eval_no_match_check))
+            results.append(run_step("eval inline pointer split", eval_inline_pointer_check))
+            results.append(run_step("eval skill limit zero", eval_limit_zero_check))
+            results.append(run_step("eval truncation pointer tail", eval_truncation_check))
+            results.append(run_step("eval load full content", eval_load_full_content_check))
+            results.append(run_step("eval zero match fallback", eval_zero_match_fallback_check))
+            results.append(run_step("eval missing skill error", eval_missing_skill_error_check))
+            results.append(run_step("eval fence truncation", fence_truncation_check))
+            results.append(
+                run_step(
+                    "eval audit pointer field",
+                    lambda: audit_pointer_field_check(project),
+                )
+            )
+        finally:
+            if old_skill_sources is None:
+                os.environ.pop("AIOS_SKILL_SOURCES", None)
+            else:
+                os.environ["AIOS_SKILL_SOURCES"] = old_skill_sources
+            if old_skill_overlay is None:
+                os.environ.pop("AIOS_SKILL_OVERLAY", None)
+            else:
+                os.environ["AIOS_SKILL_OVERLAY"] = old_skill_overlay
 
         plugin_source = Path(tmp) / "plugin"
         plugin_source.mkdir()
@@ -271,8 +881,6 @@ def run_self_test() -> list[SelfTestResult]:
             path.unlink(missing_ok=True)
 
     # Remove temporary imported artifacts from global registries after tempdir cleanup.
-    import shutil
-
     shutil.rmtree(Path(__file__).resolve().parents[1] / "skills" / "vendor" / "aios_self_test", ignore_errors=True)
     shutil.rmtree(Path(__file__).resolve().parents[1] / "plugins" / "vendor" / "aios_self_test", ignore_errors=True)
     results.append(run_step("reindex skills cleanup", lambda: f"{index_skills()} skill(s)"))

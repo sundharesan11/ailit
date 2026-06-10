@@ -8,6 +8,7 @@ from pathlib import Path
 from .adapters import render_for_tool
 from .context_builder import build_context_parts
 from .doctor import DoctorCheck, run_doctor
+from .registry import load_registry
 
 
 def readiness_warnings(checks: list[DoctorCheck]) -> list[str]:
@@ -27,6 +28,7 @@ def append_prepare_audit(
     skill_names: list[str],
     solution_slugs: list[str],
     warning_count: int,
+    pointer_count: int = 0,
 ) -> None:
     """Append a lightweight prepare audit entry under project ai/usage.log."""
     ai_dir = project_root / "ai"
@@ -42,10 +44,11 @@ def append_prepare_audit(
     solutions = ",".join(solution_slugs) or "-"
     entry = (
         f"{timestamp} | command=prepare | tool={tool} | warnings={warning_count} "
-        f"| skills={skills} | solutions={solutions} | task={task_preview}\n"
+        f"| skills={skills} | pointers={pointer_count} | solutions={solutions} "
+        f"| task={task_preview}\n"
     )
-    existing = log_path.read_text(encoding="utf-8") if log_path.exists() else ""
-    log_path.write_text(existing + entry, encoding="utf-8")
+    with log_path.open("a", encoding="utf-8") as handle:
+        handle.write(entry)
 
 
 def prepare_task(
@@ -58,14 +61,21 @@ def prepare_task(
 ) -> str:
     """Build a task prompt with project readiness warnings."""
     project_root = Path(project).expanduser().resolve()
-    checks = run_doctor(project_root) if include_doctor else []
+    registry = load_registry()
+    checks = (
+        run_doctor(project_root, include_context_smoke=False, registry=registry)
+        if include_doctor
+        else []
+    )
     warnings = readiness_warnings(checks)
-    context = build_context_parts(task, str(project_root), skill_limit, solution_limit)
+    context = build_context_parts(task, str(project_root), skill_limit, solution_limit, registry)
     prompt = render_for_tool(context, tool)
 
-    skill_names = context.get("skill_names", [])
+    skill_names = context.get("inline_skill_names", [])
+    pointer_names = context.get("pointer_skill_names", [])
     solution_slugs = context.get("solution_slugs", [])
     assert isinstance(skill_names, list)
+    assert isinstance(pointer_names, list)
     assert isinstance(solution_slugs, list)
     append_prepare_audit(
         project_root,
@@ -74,6 +84,7 @@ def prepare_task(
         skill_names=skill_names,
         solution_slugs=solution_slugs,
         warning_count=len(warnings),
+        pointer_count=len(pointer_names),
     )
 
     if not warnings:

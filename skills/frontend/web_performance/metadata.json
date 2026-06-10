@@ -1,0 +1,14 @@
+{
+  "name": "web_performance",
+  "title": "Web Performance",
+  "description": "Practical guidance for fast-loading web pages: images, fonts, scripts, and Core Web Vitals.",
+  "path": "skills/frontend/web_performance",
+  "tags": ["frontend", "performance", "web", "website", "speed"],
+  "aliases": ["page speed", "core web vitals", "lighthouse score"],
+  "keywords": ["lighthouse", "lcp", "cls", "vitals", "lazy", "font", "bundle", "image", "cache"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

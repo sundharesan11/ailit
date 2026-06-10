@@ -35,7 +35,7 @@ What should be revisited later?
 Create a reusable update:
 
 ```bash
-python3 ~/engineering_brain/scripts/aios.py capture-update \
+aios capture-update \
   --title "Short title" \
   --context "Where the lesson came from" \
   --change "What should change" \

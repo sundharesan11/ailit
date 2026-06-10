@@ -259,6 +259,46 @@ AIOS_SKILL_SOURCES="/some/path:/another/path"
 
 Use your shell's path separator between entries.
 
+## Enriching External Skills With The Overlay
+
+Installed external skills often ship with weak metadata, which makes them hard
+to match. The overlay file lets you add matching terms without editing any
+files under `~/.agents` or `~/.codex`:
+
+```text
+skills/external_overlay.json
+```
+
+The format is one object per skill, keyed by the slugified skill name shown in
+`aios list-skills`:
+
+```json
+{
+  "skills": {
+    "ui_ux_design": {
+      "tags": ["website", "portfolio", "landing"],
+      "keywords": ["tailwind", "react"],
+      "aliases": ["web-design"]
+    }
+  }
+}
+```
+
+Rules:
+
+- an optional top-level `description` string can document the file itself
+- `tags`, `keywords`, and `aliases` must be lists of strings; all are optional
+- values are unioned into the registry entry at index time and tokenized for
+  matching, so multiword terms like "core web vitals" become single tokens
+- a missing overlay file is fine; an invalid one is ignored with a warning and
+  never breaks a command
+- aliases are used for matching only; `aios load` still expects the canonical
+  skill name
+- keys that match no installed skill are reported by `aios doctor` and
+  `aios list-skill-sources`, so stale entries stay visible
+
+For testing, `AIOS_SKILL_OVERLAY` points AIOS at an alternative overlay file.
+
 ## Good Skill Hygiene
 
 Keep skills simple.

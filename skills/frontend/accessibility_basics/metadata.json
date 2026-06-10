@@ -1,0 +1,14 @@
+{
+  "name": "accessibility_basics",
+  "title": "Accessibility Basics",
+  "description": "Practical accessibility guidance for building web pages and components that work with keyboards, screen readers, and assistive technology.",
+  "path": "skills/frontend/accessibility_basics",
+  "tags": ["frontend", "accessibility", "accessible", "a11y", "web", "website", "ui"],
+  "aliases": ["a11y", "screen reader support", "wcag basics"],
+  "keywords": ["aria", "contrast", "keyboard", "focus", "semantic", "alt", "label", "wcag", "screen", "reader", "readers", "site"],
+  "version": "0.1.0",
+  "status": "active",
+  "entrypoint": "skill.md",
+  "recommended_standards": ["simplicity"],
+  "compatible_tools": ["codex", "claude-code", "cursor", "gemini-cli"]
+}

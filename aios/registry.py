@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,8 @@ DEFAULT_EXTERNAL_SKILL_SOURCE_PATHS = (
     Path.home() / ".agents" / "skills",
     Path.home() / ".codex" / "skills",
 )
+SKILL_OVERLAY_PATH = SKILLS_DIR / "external_overlay.json"
+OVERLAY_LIST_FIELDS = ("tags", "keywords", "aliases")
 
 
 def slugify_name(value: str) -> str:
@@ -51,22 +54,116 @@ def home_relative_label(path: Path) -> str:
         return path.resolve().as_posix()
 
 
-def parse_frontmatter(text: str) -> dict[str, str]:
-    """Parse a simple YAML frontmatter block from a SKILL.md file."""
+def parse_flow_list(value: str) -> list[str] | None:
+    """Parse a flow-style YAML list like `[a, b]`, or return None."""
+    if not (value.startswith("[") and value.endswith("]")):
+        return None
+    items = [item.strip().strip("\"'") for item in value[1:-1].split(",")]
+    return [item for item in items if item]
+
+
+def parse_block_list(lines: list[str], start: int) -> tuple[list[str], int] | None:
+    """Parse an indented `- item` block list starting at `start`.
+
+    Returns the items and the index after the block, or None when the
+    indented content is not a plain list (for example a nested map), in
+    which case the caller should skip the key entirely.
+    """
+    items: list[str] = []
+    cursor = start
+    while cursor < len(lines):
+        line = lines[cursor]
+        if not line.strip():
+            cursor += 1
+            continue
+        if line.strip() == "---" or not line.startswith((" ", "\t")):
+            break
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            item = stripped[2:].strip().strip("\"'")
+            if item:
+                items.append(item)
+            cursor += 1
+            continue
+        if stripped == "-":
+            cursor += 1
+            continue
+        return None
+    if not items:
+        return None
+    return items, cursor
+
+
+def parse_frontmatter(text: str) -> dict[str, str | list[str]]:
+    """Parse a simple YAML frontmatter block from a SKILL.md file.
+
+    Supports scalar values, flow-style lists (`tags: [a, b]`), and
+    block-style lists (`tags:` followed by indented `- item` lines).
+    Nested maps and other indented structures are skipped, preserving the
+    previous behavior for frontmatter such as `hooks:` blocks.
+    """
     if not text.startswith("---"):
         return {}
 
     lines = text.splitlines()
-    metadata: dict[str, str] = {}
-    for line in lines[1:]:
+    metadata: dict[str, str | list[str]] = {}
+    index = 1
+    while index < len(lines):
+        line = lines[index]
         if line.strip() == "---":
             break
         if not line or line.startswith((" ", "\t")) or ":" not in line:
+            index += 1
             continue
         key, value = line.split(":", 1)
-        value = value.strip().strip("\"'")
-        metadata[key.strip()] = value
+        key = key.strip()
+        value = value.strip()
+        if value:
+            flow_list = parse_flow_list(value)
+            metadata[key] = flow_list if flow_list is not None else value.strip("\"'")
+            index += 1
+            continue
+        block = parse_block_list(lines, index + 1)
+        if block is not None:
+            items, index = block
+            metadata[key] = items
+            continue
+        index += 1
     return metadata
+
+
+def strip_frontmatter(text: str) -> str:
+    """Remove a leading YAML frontmatter block when present."""
+    if not text.startswith("---"):
+        return text
+    parts = text.split("\n---\n", 1)
+    if len(parts) == 2:
+        return parts[1].lstrip()
+    return text
+
+
+def frontmatter_str(frontmatter: dict[str, str | list[str]], key: str) -> str | None:
+    """Return a frontmatter value coerced to a string, or None."""
+    value = frontmatter.get(key)
+    if value is None:
+        return None
+    if isinstance(value, list):
+        return " ".join(str(item) for item in value).strip() or None
+    return str(value).strip() or None
+
+
+def frontmatter_terms(frontmatter: dict[str, Any], key: str) -> list[str]:
+    """Return frontmatter list values as matcher-friendly lowercase tokens."""
+    value = frontmatter.get(key)
+    if value is None:
+        return []
+    items = value if isinstance(value, list) else str(value).split(",")
+    terms: list[str] = []
+    for item in items:
+        for token in tokenize_text(str(item)):
+            if token not in terms:
+                terms.append(token)
+    return terms
 
 
 def markdown_title(text: str) -> str | None:
@@ -187,10 +284,10 @@ def normalize_external_skill(source_root: Path, skill_md_path: Path) -> dict[str
     """Convert an installed external SKILL.md into registry metadata."""
     text = skill_md_path.read_text(encoding="utf-8", errors="ignore")
     frontmatter = parse_frontmatter(text)
-    raw_name = frontmatter.get("name") or skill_md_path.parent.name
+    raw_name = frontmatter_str(frontmatter, "name") or skill_md_path.parent.name
     name = slugify_name(raw_name)
     title = markdown_title(text) or default_title(name)
-    description = frontmatter.get("description") or f"Installed skill from {source_label_for_root(source_root)}."
+    description = frontmatter_str(frontmatter, "description") or f"Installed skill from {source_label_for_root(source_root)}."
     source_label = source_label_for_root(source_root)
     display_path = home_relative_label(skill_md_path.parent)
 
@@ -198,6 +295,8 @@ def normalize_external_skill(source_root: Path, skill_md_path: Path) -> dict[str
     if title:
         tag_tokens.update(tokenize_text(title))
     tag_tokens.update({"external", source_label})
+    tag_tokens.update(frontmatter_terms(frontmatter, "tags"))
+    keywords = frontmatter_terms(frontmatter, "keywords")
 
     aliases = []
     for alias in (raw_name, skill_md_path.parent.name):
@@ -216,12 +315,93 @@ def normalize_external_skill(source_root: Path, skill_md_path: Path) -> dict[str
         "provider": source_label,
         "tags": sorted(tag_tokens),
         "aliases": aliases,
-        "keywords": [],
-        "version": frontmatter.get("version", "external"),
+        "keywords": sorted(keywords),
+        "version": frontmatter_str(frontmatter, "version") or "external",
         "status": "active",
         "trust_level": "reviewed",
         "entrypoint": "SKILL.md",
     }
+
+
+def configured_skill_overlay_path() -> Path:
+    """Return the active overlay path, honoring the AIOS_SKILL_OVERLAY override."""
+    raw = os.getenv("AIOS_SKILL_OVERLAY")
+    if raw:
+        return Path(raw).expanduser()
+    return SKILL_OVERLAY_PATH
+
+
+def load_skill_overlay() -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+    """Load the hand-maintained external skill overlay and its status.
+
+    A missing overlay file is a silent no-op. An invalid file warns on stderr
+    and is ignored so registry builds never fail on overlay problems.
+    """
+    path = configured_skill_overlay_path()
+    status: dict[str, Any] = {
+        "path": path.resolve().as_posix(),
+        "display_path": home_relative_label(path),
+        "exists": path.exists(),
+        "valid": True,
+        "entry_count": 0,
+    }
+    if not path.exists():
+        return {}, status
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        entries = document.get("skills") if isinstance(document, dict) else None
+        if not isinstance(entries, dict):
+            raise ValueError("top-level 'skills' must be an object")
+        normalized: dict[str, dict[str, Any]] = {}
+        for key, value in entries.items():
+            if not str(key).strip():
+                raise ValueError("entry keys must be non-empty skill names")
+            if not isinstance(value, dict):
+                raise ValueError(f"entry {key!r} must be an object")
+            for field in OVERLAY_LIST_FIELDS:
+                field_value = value.get(field)
+                if field_value is None:
+                    continue
+                if not isinstance(field_value, list) or not all(
+                    isinstance(item, str) for item in field_value
+                ):
+                    raise ValueError(f"entry {key!r} field {field!r} must be a list of strings")
+            normalized_key = slugify_name(str(key))
+            if normalized_key in normalized:
+                raise ValueError(f"entry {key!r} collides with another key as {normalized_key!r}")
+            normalized[normalized_key] = value
+        status["entry_count"] = len(normalized)
+        return normalized, status
+    except (json.JSONDecodeError, ValueError, OSError) as exc:
+        print(f"WARN: skill overlay ignored ({path}): {exc}", file=sys.stderr)
+        status["valid"] = False
+        return {}, status
+
+
+def apply_skill_overlay(skill: dict[str, Any], overlay: dict[str, dict[str, Any]]) -> str | None:
+    """Merge overlay enrichment into an external skill entry in place.
+
+    Matches by slugified name or alias and returns the matched overlay key,
+    or None. Tags and keywords are tokenized so they stay matcher-friendly.
+    """
+    candidates = [str(skill.get("name", ""))]
+    candidates.extend(slugify_name(str(alias)) for alias in skill.get("aliases", []))
+    key = next((candidate for candidate in candidates if candidate in overlay), None)
+    if key is None:
+        return None
+    entry = overlay[key]
+    tags = set(skill.get("tags", []))
+    tags.update(frontmatter_terms(entry, "tags"))
+    skill["tags"] = sorted(tags)
+    keywords = set(skill.get("keywords", []))
+    keywords.update(frontmatter_terms(entry, "keywords"))
+    skill["keywords"] = sorted(keywords)
+    aliases = list(skill.get("aliases", []))
+    for alias in entry.get("aliases", []):
+        if alias and alias not in aliases:
+            aliases.append(alias)
+    skill["aliases"] = aliases
+    return key
 
 
 def ensure_unique_skill_names(skills: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -254,20 +434,36 @@ def ensure_unique_skill_names(skills: list[dict[str, Any]]) -> list[dict[str, An
     return unique_skills
 
 
-def load_external_skill_metadata() -> list[dict[str, Any]]:
-    """Load installed external skills from configured source roots."""
+def load_external_skill_metadata(
+    overlay: dict[str, dict[str, Any]] | None = None,
+    matched_overlay_keys: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Load installed external skills from configured source roots.
+
+    The overlay is applied per skill before name deduplication so
+    provider-duplicated skills all receive their enrichment.
+    """
     skills: list[dict[str, Any]] = []
     for source_root in configured_external_skill_sources():
         for skill_md_path in external_skill_markdown_paths(source_root):
-            skills.append(normalize_external_skill(source_root, skill_md_path))
+            skill = normalize_external_skill(source_root, skill_md_path)
+            if overlay:
+                key = apply_skill_overlay(skill, overlay)
+                if key is not None and matched_overlay_keys is not None:
+                    matched_overlay_keys.add(key)
+            skills.append(skill)
     return sorted(ensure_unique_skill_names(skills), key=lambda item: item["name"])
 
 
 def build_registry() -> dict[str, Any]:
     """Build the in-memory skill registry."""
+    overlay, overlay_status = load_skill_overlay()
+    matched_overlay_keys: set[str] = set()
     local_skills = load_local_skill_metadata()
-    external_skills = load_external_skill_metadata()
+    external_skills = load_external_skill_metadata(overlay, matched_overlay_keys)
     all_skills = ensure_unique_skill_names(local_skills + external_skills)
+    overlay_status["matched_count"] = len(matched_overlay_keys)
+    overlay_status["unmatched_keys"] = sorted(set(overlay) - matched_overlay_keys)
     return {
         "schema_version": "1.1",
         "description": (
@@ -281,6 +477,7 @@ def build_registry() -> dict[str, Any]:
                 "skill_count": len(local_skills),
             },
             "external": external_skill_source_statuses(),
+            "overlay": overlay_status,
         },
         "skills": sorted(all_skills, key=lambda item: item["name"]),
     }

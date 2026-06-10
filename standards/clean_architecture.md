@@ -1,3 +1,23 @@
+---
+tags:
+  - architecture
+  - boundary
+  - boundaries
+  - service
+  - services
+  - api
+  - integration
+  - module
+  - domain
+  - backend
+  - database
+  - dependency
+  - system
+  - refactor
+  - refactoring
+  - design
+---
+
 # Standard: Clean Architecture
 
 Use this standard when a task touches boundaries, dependencies, data flow, or long-lived business logic.
