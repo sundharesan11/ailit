@@ -8,7 +8,7 @@ from pathlib import Path
 from .context_builder import build_context
 from .paths import PLUGIN_REGISTRY_PATH, PROVIDER_REGISTRY_PATH, REGISTRY_PATH
 from .project_init import PROJECT_TEMPLATES
-from .registry import validate_all_skills
+from .registry import load_registry, validate_all_skills
 
 
 @dataclass(frozen=True)
@@ -108,6 +108,23 @@ def run_doctor(project_path: str | Path) -> list[DoctorCheck]:
             "all skills valid" if not skill_errors else f"{len(skill_errors)} skill(s) invalid",
         )
     )
+
+    overlay_status = load_registry().get("skill_sources", {}).get("overlay") or {}
+    if overlay_status.get("exists"):
+        if not overlay_status.get("valid", True):
+            checks.append(
+                DoctorCheck("WARN", "skills overlay", "invalid JSON or schema - overlay ignored")
+            )
+        else:
+            unmatched = overlay_status.get("unmatched_keys", [])
+            # Informational by design: unmatched keys reflect machine-local
+            # skill installs, so they must never surface as prepare warnings.
+            detail = (
+                f"{overlay_status.get('entry_count', 0)} entries, all matched"
+                if not unmatched
+                else f"unmatched keys: {', '.join(unmatched)}"
+            )
+            checks.append(DoctorCheck("PASS", "skills overlay", detail))
 
     try:
         build_context("doctor smoke test", str(root), 1, 1, "universal")

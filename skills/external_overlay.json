@@ -1,0 +1,25 @@
+{
+  "description": "Hand-maintained enrichment for installed external skills. Keys are slugified skill names (see `aios list-skills`); values may carry `tags`, `keywords`, and `aliases` lists that are unioned into the registry entry at index time. Files under ~/.agents and ~/.codex are never modified. Unmatched keys are reported by `aios doctor` and `aios list-skill-sources`.",
+  "skills": {
+    "ui_ux_design": {
+      "tags": ["website", "portfolio", "landing", "hero", "frontend", "responsive", "web", "page", "section", "layout"],
+      "keywords": ["nextjs", "next", "js", "tailwind", "css", "react", "component", "grid", "navbar", "footer"]
+    },
+    "frontend_design": {
+      "tags": ["website", "portfolio", "landing", "hero", "frontend", "web", "ui", "interface"],
+      "keywords": ["nextjs", "next", "js", "tailwind", "css", "react", "component"]
+    },
+    "seo_audit": {
+      "tags": ["website", "seo", "web", "search"],
+      "keywords": ["meta", "sitemap", "ranking", "lighthouse"]
+    },
+    "page_cro": {
+      "tags": ["landing", "website", "page", "conversion"],
+      "keywords": ["cta", "copy", "signup", "funnel"]
+    },
+    "stitch_ui_design": {
+      "tags": ["ui", "design", "mockup", "screen", "frontend"],
+      "keywords": ["stitch", "wireframe"]
+    }
+  }
+}

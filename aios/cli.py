@@ -192,6 +192,17 @@ def print_list_skill_sources(args: argparse.Namespace) -> int:
             f"{source['label']} | exists={exists} | skill_count={source['skill_count']} "
             f"| path={source['display_path']}"
         )
+
+    overlay = load_registry().get("skill_sources", {}).get("overlay") or {}
+    if overlay:
+        exists = "yes" if overlay.get("exists") else "no"
+        valid = "yes" if overlay.get("valid", True) else "no"
+        unmatched = ",".join(overlay.get("unmatched_keys", [])) or "none"
+        print(
+            f"overlay | exists={exists} | valid={valid} "
+            f"| entries={overlay.get('entry_count', 0)} | unmatched={unmatched} "
+            f"| path={overlay.get('display_path', '')}"
+        )
     return 0
 
 

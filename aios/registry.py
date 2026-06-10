@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,8 @@ DEFAULT_EXTERNAL_SKILL_SOURCE_PATHS = (
     Path.home() / ".agents" / "skills",
     Path.home() / ".codex" / "skills",
 )
+SKILL_OVERLAY_PATH = SKILLS_DIR / "external_overlay.json"
+OVERLAY_LIST_FIELDS = ("tags", "keywords", "aliases")
 
 
 def slugify_name(value: str) -> str:
@@ -307,6 +310,84 @@ def normalize_external_skill(source_root: Path, skill_md_path: Path) -> dict[str
     }
 
 
+def configured_skill_overlay_path() -> Path:
+    """Return the active overlay path, honoring the AIOS_SKILL_OVERLAY override."""
+    raw = os.getenv("AIOS_SKILL_OVERLAY")
+    if raw:
+        return Path(raw).expanduser()
+    return SKILL_OVERLAY_PATH
+
+
+def load_skill_overlay() -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+    """Load the hand-maintained external skill overlay and its status.
+
+    A missing overlay file is a silent no-op. An invalid file warns on stderr
+    and is ignored so registry builds never fail on overlay problems.
+    """
+    path = configured_skill_overlay_path()
+    status: dict[str, Any] = {
+        "path": path.resolve().as_posix(),
+        "display_path": home_relative_label(path),
+        "exists": path.exists(),
+        "valid": True,
+        "entry_count": 0,
+    }
+    if not path.exists():
+        return {}, status
+    try:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        entries = document.get("skills") if isinstance(document, dict) else None
+        if not isinstance(entries, dict):
+            raise ValueError("top-level 'skills' must be an object")
+        normalized: dict[str, dict[str, Any]] = {}
+        for key, value in entries.items():
+            if not isinstance(value, dict):
+                raise ValueError(f"entry {key!r} must be an object")
+            for field in OVERLAY_LIST_FIELDS:
+                field_value = value.get(field)
+                if field_value is None:
+                    continue
+                if not isinstance(field_value, list) or not all(
+                    isinstance(item, str) for item in field_value
+                ):
+                    raise ValueError(f"entry {key!r} field {field!r} must be a list of strings")
+            normalized[slugify_name(str(key))] = value
+        status["entry_count"] = len(normalized)
+        return normalized, status
+    except (json.JSONDecodeError, ValueError, OSError) as exc:
+        print(f"WARN: skill overlay ignored ({path}): {exc}", file=sys.stderr)
+        status["valid"] = False
+        return {}, status
+
+
+def apply_skill_overlay(skill: dict[str, Any], overlay: dict[str, dict[str, Any]]) -> str | None:
+    """Merge overlay enrichment into an external skill entry in place.
+
+    Matches by slugified name or alias and returns the matched overlay key,
+    or None. Tags and keywords are tokenized so they stay matcher-friendly.
+    """
+    candidates = [str(skill.get("name", ""))]
+    candidates.extend(slugify_name(str(alias)) for alias in skill.get("aliases", []))
+    key = next((candidate for candidate in candidates if candidate in overlay), None)
+    if key is None:
+        return None
+    entry = overlay[key]
+    tags = set(skill.get("tags", []))
+    for item in entry.get("tags", []):
+        tags.update(tokenize_text(item))
+    skill["tags"] = sorted(tags)
+    keywords = set(skill.get("keywords", []))
+    for item in entry.get("keywords", []):
+        keywords.update(tokenize_text(item))
+    skill["keywords"] = sorted(keywords)
+    aliases = list(skill.get("aliases", []))
+    for alias in entry.get("aliases", []):
+        if alias and alias not in aliases:
+            aliases.append(alias)
+    skill["aliases"] = aliases
+    return key
+
+
 def ensure_unique_skill_names(skills: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Ensure registry skill names are unique, preferring earlier entries."""
     used_names: set[str] = set()
@@ -337,20 +418,36 @@ def ensure_unique_skill_names(skills: list[dict[str, Any]]) -> list[dict[str, An
     return unique_skills
 
 
-def load_external_skill_metadata() -> list[dict[str, Any]]:
-    """Load installed external skills from configured source roots."""
+def load_external_skill_metadata(
+    overlay: dict[str, dict[str, Any]] | None = None,
+    matched_overlay_keys: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    """Load installed external skills from configured source roots.
+
+    The overlay is applied per skill before name deduplication so
+    provider-duplicated skills all receive their enrichment.
+    """
     skills: list[dict[str, Any]] = []
     for source_root in configured_external_skill_sources():
         for skill_md_path in external_skill_markdown_paths(source_root):
-            skills.append(normalize_external_skill(source_root, skill_md_path))
+            skill = normalize_external_skill(source_root, skill_md_path)
+            if overlay:
+                key = apply_skill_overlay(skill, overlay)
+                if key is not None and matched_overlay_keys is not None:
+                    matched_overlay_keys.add(key)
+            skills.append(skill)
     return sorted(ensure_unique_skill_names(skills), key=lambda item: item["name"])
 
 
 def build_registry() -> dict[str, Any]:
     """Build the in-memory skill registry."""
+    overlay, overlay_status = load_skill_overlay()
+    matched_overlay_keys: set[str] = set()
     local_skills = load_local_skill_metadata()
-    external_skills = load_external_skill_metadata()
+    external_skills = load_external_skill_metadata(overlay, matched_overlay_keys)
     all_skills = ensure_unique_skill_names(local_skills + external_skills)
+    overlay_status["matched_count"] = len(matched_overlay_keys)
+    overlay_status["unmatched_keys"] = sorted(set(overlay) - matched_overlay_keys)
     return {
         "schema_version": "1.1",
         "description": (
@@ -364,6 +461,7 @@ def build_registry() -> dict[str, Any]:
                 "skill_count": len(local_skills),
             },
             "external": external_skill_source_statuses(),
+            "overlay": overlay_status,
         },
         "skills": sorted(all_skills, key=lambda item: item["name"]),
     }

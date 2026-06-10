@@ -73,6 +73,50 @@ def nested_frontmatter_map_check() -> str:
     return "nested map skipped"
 
 
+def overlay_enrichment_check() -> str:
+    """Verify overlay tags and keywords merge into both provider copies."""
+    skills = registry_by_name(load_registry(refresh=True))
+    entry = skills["external_smoke"]
+    if "overlayterm" not in set(entry.get("tags", [])):
+        raise ValueError("overlay tags not merged")
+    if "overlaykey" not in set(entry.get("keywords", [])):
+        raise ValueError("overlay keywords not merged")
+    duplicate = next(
+        (skill for name, skill in skills.items() if name.endswith("_external_smoke")),
+        None,
+    )
+    if duplicate is None:
+        raise ValueError("provider duplicate missing from registry")
+    if "overlayterm" not in set(duplicate.get("tags", [])):
+        raise ValueError("overlay not applied to provider duplicate")
+    return "overlay merged for both provider copies"
+
+
+def overlay_unmatched_check() -> str:
+    """Verify unmatched overlay keys are reported in registry sources."""
+    status = load_registry(refresh=True).get("skill_sources", {}).get("overlay", {})
+    unmatched = status.get("unmatched_keys", [])
+    if "ghost_skill" not in unmatched:
+        raise ValueError(f"expected ghost_skill unmatched, got {unmatched}")
+    return "unmatched overlay key reported"
+
+
+def overlay_malformed_check(malformed_path: Path) -> str:
+    """Verify a malformed overlay never breaks a registry build."""
+    old_overlay = os.environ.get("AIOS_SKILL_OVERLAY")
+    os.environ["AIOS_SKILL_OVERLAY"] = str(malformed_path)
+    try:
+        status = load_registry(refresh=True).get("skill_sources", {}).get("overlay", {})
+        if status.get("valid", True):
+            raise ValueError("malformed overlay not flagged as invalid")
+    finally:
+        if old_overlay is None:
+            os.environ.pop("AIOS_SKILL_OVERLAY", None)
+        else:
+            os.environ["AIOS_SKILL_OVERLAY"] = old_overlay
+    return "malformed overlay ignored safely"
+
+
 def run_self_test() -> list[SelfTestResult]:
     """Run runtime smoke tests without external dependencies."""
     results: list[SelfTestResult] = []
@@ -228,8 +272,29 @@ def run_self_test() -> list[SelfTestResult]:
             "# Nested Map Smoke\n",
             encoding="utf-8",
         )
+        second_root = Path(tmp) / "external_skills_dup"
+        duplicate_skill = second_root / "external-smoke"
+        duplicate_skill.mkdir(parents=True)
+        (duplicate_skill / "SKILL.md").write_text(
+            "---\n"
+            "name: external-smoke\n"
+            "description: Duplicate provider copy\n"
+            "---\n\n"
+            "# External Smoke Duplicate\n",
+            encoding="utf-8",
+        )
+        overlay_path = Path(tmp) / "overlay.json"
+        overlay_path.write_text(
+            '{"skills": {"external_smoke": {"tags": ["overlayterm"], "keywords": ["overlaykey"]}, '
+            '"ghost_skill": {"tags": ["ghost"]}}}',
+            encoding="utf-8",
+        )
+        malformed_overlay_path = Path(tmp) / "overlay_malformed.json"
+        malformed_overlay_path.write_text('{"skills": [', encoding="utf-8")
         old_skill_sources = os.environ.get("AIOS_SKILL_SOURCES")
-        os.environ["AIOS_SKILL_SOURCES"] = str(external_root)
+        old_skill_overlay = os.environ.get("AIOS_SKILL_OVERLAY")
+        os.environ["AIOS_SKILL_SOURCES"] = os.pathsep.join([str(external_root), str(second_root)])
+        os.environ["AIOS_SKILL_OVERLAY"] = str(overlay_path)
         try:
             results.append(
                 run_step(
@@ -259,11 +324,23 @@ def run_self_test() -> list[SelfTestResult]:
                     lambda: nested_frontmatter_map_check(),
                 )
             )
+            results.append(run_step("overlay enrichment", overlay_enrichment_check))
+            results.append(run_step("overlay unmatched key report", overlay_unmatched_check))
+            results.append(
+                run_step(
+                    "overlay malformed file safety",
+                    lambda: overlay_malformed_check(malformed_overlay_path),
+                )
+            )
         finally:
             if old_skill_sources is None:
                 os.environ.pop("AIOS_SKILL_SOURCES", None)
             else:
                 os.environ["AIOS_SKILL_SOURCES"] = old_skill_sources
+            if old_skill_overlay is None:
+                os.environ.pop("AIOS_SKILL_OVERLAY", None)
+            else:
+                os.environ["AIOS_SKILL_OVERLAY"] = old_skill_overlay
 
         plugin_source = Path(tmp) / "plugin"
         plugin_source.mkdir()
